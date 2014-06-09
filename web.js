@@ -14,9 +14,27 @@ var fs = require('fs');
 var http = require('http');
 var url = require('url');
 
-var __appData = {};
+var __appData = {
+	debug: true,
+	listenPort: 2000,
+	timestamps: {
+		last: 0,
+		up: 0
+	}
+};
 
-var __serverData = {};
+var __serverData = {
+	clients: {}
+};
+
+var _base64 = function( data, type ) {
+	var type = (typeof(type) === 'string') ? type : 'encode';
+	if (type === 'decode') {
+		return new Buffer(data, 'base64').toString('ascii');
+	} else {
+		return new Buffer(data).toString('base64');
+	}
+};
 
 var _getID = function( IDLength ) {
 
