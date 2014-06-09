@@ -27,6 +27,13 @@ var __serverData = {
 	clients: {}
 };
 
+/**
+ * @function _base64
+ * Encodes a string to base64, or decodes base64.to string.
+ * @param (string) data The input string or base64.
+ * @param (string) type The type of operation ('encode' or 'decode'). Default 'encode'.
+ * @return (string) The en/decoded string.
+ */
 var _base64 = function( data, type ) {
 	var type = (typeof(type) === 'string') ? type : 'encode';
 	if (type === 'decode') {
@@ -36,16 +43,51 @@ var _base64 = function( data, type ) {
 	}
 };
 
+/**
+ * @function _getID
+ * Generates an alphanumeric ID key of specified length.
+ * @param (int) IDLength - Length of the ID to create.
+ * @return (string) The generated ID.
+ */
 var _getID = function( IDLength ) {
-
+	var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+	var id = '';
+	for (var i=0; i<IDLength; i++) {
+		id += charset.substr(Math.floor(Math.random()*charset.length), 1);
+	}
+	return id;
 };
 
-var _sendFile = function( requestID, file ) {
-
+/**
+ * @function _sendFile
+ * Sends a file to the specified Request ID.
+ * @param (string) requestID - The request ID to send file to..
+ * @param (string) file - The file to send.
+ * @param (object) headers - Additional headers for the request response.
+ * @param (function) callback - Callback on completion.
+ * @return (bool) True on success.
+ */
+var _sendFile = function( requestID, file, headers, callback ) {
+	var headers = (typeof(headers) === 'object') ? headers : {};
+	if (callback && typeof(callback) === 'function') {
+		callback();
+	}
 };
 
-var _sendStatus = function( requestID, code ) {
-
+/**
+ * @function _sendStatus
+ * Sends an HTTP status (and JSON object) to the specified Request ID.
+ * @param (string) requestID - The request ID to send file to..
+ * @param (string) status - The status to send.
+ * @param (object) headers - Additional headers for the request response.
+ * @param (function) callback - Callback on completion.
+ * @return (bool) True on success.
+ */
+var _sendStatus = function( requestID, code, headers, callback ) {
+	var headers = (typeof(headers) === 'object') ? headers : {};
+	if (callback && typeof(callback) === 'function') {
+		callback();
+	}
 };
 
 /*\
