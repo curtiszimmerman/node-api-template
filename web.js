@@ -14,6 +14,22 @@ var fs = require('fs');
 var http = require('http');
 var url = require('url');
 
+var __appData = {};
+
+var __serverData = {};
+
+var _getID = function( IDLength ) {
+
+};
+
+var _sendFile = function( requestID, file ) {
+
+};
+
+var _sendStatus = function( requestID, code ) {
+
+};
+
 /*\
 |*| pub/sub/unsub pattern utility closure
 \*/
@@ -58,4 +74,17 @@ var _pubsub = (function() {
 		sub: _sub,
 		unsub: _unsub
 	};
+})();
+
+var init = (function() {
+	
+})();
+
+var api = (function() {
+	var server = http.createServer(function(req, res) {
+
+	}).on('error', function(err) {
+		_log.err(err);
+	}).listen( __appData.listenPort );
+	_log.log('listening on tcp/'+__appData.listenPort);
 })();
