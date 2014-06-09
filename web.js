@@ -9,6 +9,11 @@
  * @version 0.0.1a
  */
 
+/**
+ * @todo Generate API authentication keys
+ * @todo Build modularity for pluggable extensions (like Redis or SQS)
+ */
+
 var assert = require('assert');
 var fs = require('fs');
 var http = require('http');
@@ -69,6 +74,9 @@ var _getID = function( IDLength ) {
  */
 var _sendFile = function( requestID, file, headers, callback ) {
 	var headers = (typeof(headers) === 'object') ? headers : {};
+	fs.stat(file, function(err, data) {
+
+	});
 	if (callback && typeof(callback) === 'function') {
 		callback();
 	}
