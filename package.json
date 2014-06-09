@@ -1,0 +1,28 @@
+{
+  "name": "node-api-template",
+  "version": "0.0.1",
+  "description": "HTTP-based RESTful JSON API template using only base modules",
+  "main": "web.js",
+  "devDependencies": {
+    "mocha": "~1.20.1"
+  },
+  "scripts": {
+    "test": "mocha"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/curtiszimmerman/node-api-template.git"
+  },
+  "keywords": [
+    "api",
+    "rest",
+    "json",
+    "http",
+    "node"
+  ],
+  "author": "curtis zimmerman",
+  "license": "GPLv2",
+  "bugs": {
+    "url": "https://github.com/curtiszimmerman/node-api-template/issues"
+  }
+}
