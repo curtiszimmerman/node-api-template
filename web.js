@@ -75,7 +75,7 @@ var _getID = function( IDLength ) {
 var _sendFile = function( requestID, file, headers, callback ) {
 	var headers = (typeof(headers) === 'object') ? headers : {};
 	fs.stat(file, function(err, data) {
-
+		
 	});
 	if (callback && typeof(callback) === 'function') {
 		callback();
@@ -93,6 +93,49 @@ var _sendFile = function( requestID, file, headers, callback ) {
  */
 var _sendStatus = function( requestID, code, headers, callback ) {
 	var headers = (typeof(headers) === 'object') ? headers : {};
+	switch (code) {
+		case 200:
+			message = "Success";
+			break;
+		case 201:
+			message = "Created";
+			break;
+		case 202:
+			message = "Accepted";
+			break;
+		case 204:
+			message = "No Content";
+		case 205:
+			message = "Continue";
+			break;
+		case 401:
+			message = "Unauthorized";
+			break;
+		case 403:
+			message = "Forbidden";
+			break;
+		case 404:
+			message = "Resource Not Found";
+			break;
+		case 405:
+			message = "Method Not Supported";
+			break;
+		case 413:
+			message = "Request Entity Too Large";
+			break;
+		default:
+			code = 500;
+			message = "Internal Server Error";
+			break;
+	}
+	var client = __serverData.clients[requestID];
+	var result = {
+		message: message,
+		status: code
+	};
+	client.res.writeHead(code, message, {'Content-Type': 'application/json'});
+	client.res.write(JSON.stringify(result));
+	client.res.end();
 	if (callback && typeof(callback) === 'function') {
 		callback();
 	}
