@@ -19,9 +19,18 @@ var fs = require('fs');
 var http = require('http');
 var url = require('url');
 
+/**
+ * application data storage object
+ * debug (boolean) Toggle display of debug messsages.
+ * cleanupInterval (integer) Interval in seconds between each cache cleanup.
+ * listenPort (integer) Port for server to listen on.
+ * mime (object) Common connection MIME types.
+ * requestIDLength (integer) Length of Request ID.
+ * timestamps (object) Relevant Unix timestamps.
+ */
 var __appData = {
 	debug: true,
-	IDLength: 15,
+	cleanupInterval: 10,
 	listenPort: 2000,
 	mime: {
 		'css': 'text/css',
@@ -32,12 +41,17 @@ var __appData = {
 		'js': 'text/javascript',
 		'png': 'image/png'
 	},
+	requestIDLength: 15,
 	timestamps: {
 		last: 0,
 		up: 0
 	}
 };
 
+/**
+ * server data storage object
+ * clients (object) Client connection cache.
+ */
 var __serverData = {
 	clients: {}
 };
@@ -59,12 +73,21 @@ var _base64 = function( data, type ) {
 };
 
 /**
+ * @function _cleanup
+ * Cleans the client cache
+ */
+var _cleanup = function() {
+
+};
+
+/**
  * @function _getID
  * Generates an alphanumeric ID key of specified length.
  * @param (int) IDLength - Length of the ID to create.
  * @return (string) The generated ID.
  */
 var _getID = function( IDLength ) {
+	var IDLength = (typeof(IDLength) === 'number') ? IDLength : __serverData.requestIDLength;
 	var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 	var id = '';
 	for (var i=0; i<IDLength; i++) {
