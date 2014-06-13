@@ -22,6 +22,15 @@ var url = require('url');
 var __appData = {
 	debug: true,
 	listenPort: 2000,
+	mime: {
+		'css': 'text/css',
+		'gif': 'image/gif',
+		'html': 'text/html',
+		'ico': 'x-image/icon',
+		'jpg': 'image/jpeg',
+		'js': 'text/javascript',
+		'png': 'image/png'
+	},
 	timestamps: {
 		last: 0,
 		up: 0
@@ -74,8 +83,24 @@ var _getID = function( IDLength ) {
  */
 var _sendFile = function( requestID, file, headers, callback ) {
 	var headers = (typeof(headers) === 'object') ? headers : {};
-	fs.stat(file, function(err, data) {
-		
+	fs.stat(file, function(err, stats) {
+		if (err) {
+			_log.err('fs.stat(): '+err);
+		} else {
+			if (stats.isFile()) {
+				fs.readFile(file, function(err, data) {
+					if (err) {
+						_log.err('fs.readFile(): '+err);
+					} else {
+						var client = __serverData.clients[requestID];
+						var type = file.substr(file.lastIndexOf('.')+1);
+						client.res.writeHead(200, {'Content-Type': __appData.mime[type]});
+						client.res.write(data);
+						client.res.end();
+					}
+				});
+			}
+		}
 	});
 	if (callback && typeof(callback) === 'function') {
 		callback();
