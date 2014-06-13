@@ -84,7 +84,14 @@ var _base64 = function( data, type ) {
  * Cleans the client cache.
  */
 var _cleanup = function() {
-
+	var timestamp = Math.round(new Date().getTime()/1000.0);
+	for (var client in __serverData.clients) {
+		if (__serverData.clients.hasOwnProperty(client)) {
+			if (client.timestamp < (timestamp-(__appData.cache.maxIdleTime*1000))) {
+				delete __serverData.clients[client];
+			}
+		}
+	}
 };
 
 /**
