@@ -22,15 +22,22 @@ var url = require('url');
 /**
  * application data storage object
  * debug (boolean) Toggle display of debug messsages.
- * cleanupInterval (integer) Interval in seconds between each cache cleanup.
+ * cache (object) Settings related to client cache.
+ *   cleanupInterval (integer) Interval in seconds between each cache cleanup.
+ *   maxIdleTime (integer) Maximum session idle time to allow open connection.
  * listenPort (integer) Port for server to listen on.
  * mime (object) Common connection MIME types.
  * requestIDLength (integer) Length of Request ID.
  * timestamps (object) Relevant Unix timestamps.
+ *   last (integer) Timestamp of last activity.
+ *   up (integer) Timestamp of server startup.
  */
 var __appData = {
 	debug: true,
-	cleanupInterval: 10,
+	cache: {
+		cleanupInterval: 10,
+		maxIdleTime: 600,
+	},
 	listenPort: 2000,
 	mime: {
 		'css': 'text/css',
@@ -74,7 +81,7 @@ var _base64 = function( data, type ) {
 
 /**
  * @function _cleanup
- * Cleans the client cache
+ * Cleans the client cache.
  */
 var _cleanup = function() {
 
@@ -271,9 +278,10 @@ var _pubsub = (function() {
 var init = (function() {
 	var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
 	var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
+	__appData.timestamps.up = Math.round(new Date().getTime()/1000.0);
 	setInterval(function() {
 		_cleanup();
-	}, 10000);
+	}, __appData.cache.cleanupInterval*1000);
 })();
 
 var api = (function() {
@@ -281,6 +289,7 @@ var api = (function() {
 		var pathname = url.parse(req.url).pathname;
 		var requestID = _getID(__appData.IDLength);
 		var timestamp = Math.round(new Date().getTime()/1000.0);
+		__appData.timestamps.last = timestamp
 		var client = {};
 		client['pathname'] = pathname;
 		client['res'] = res;
