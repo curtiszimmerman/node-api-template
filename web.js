@@ -246,14 +246,23 @@ var _pubsub = (function() {
 })();
 
 var init = (function() {
-	var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
 	var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
+	var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
+	setInterval(function() {
+		_cleanup();
+	}, 10000);
 })();
 
 var api = (function() {
 	var server = http.createServer(function(req, res) {
 		var pathname = url.parse(req.url).pathname;
 		var requestID = _getID(__appData.IDLength);
+		var timestamp = Math.round(new Date().getTime()/1000.0);
+		var client = {};
+		client['pathname'] = pathname;
+		client['res'] = res;
+		client['timestamp'] = timestamp;
+		__serverData.clients[requestID] = client;
 		if (req.method === 'GET') {
 			// test harness site
 			if (pathname === 'favicon.ico') {
