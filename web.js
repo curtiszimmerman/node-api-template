@@ -73,6 +73,38 @@ var _getID = function( IDLength ) {
 };
 
 /**
+ * @function _log
+ * Exposes three logging functions.
+ * @param (string) data - The data to log.
+ * @method dbg
+ * Log a debug message if debugging is on.
+ * @method err
+ * Log an error.
+ * @method log
+ * Log a message.
+ */
+var _log = (function( data ) {
+	var _con = function( data, type ) {
+		var pre = ['[i] DEBUG: ', '[!] ERROR: ', '[+] '];
+		console.log(pre[type]+data);
+	};
+	var _dbg = function( data ) {
+		if (__appData.debug === true) _con(data, 0);
+	};
+	var _err = function( data ) {
+		_con(data, 1);
+	};
+	var _log = function( data ) {
+		_con(data, 2);
+	};
+	return {
+		dbg: _dbg,
+		err: _err,
+		log: _log
+	};
+})();
+
+/**
  * @function _sendFile
  * Sends a file to the specified Request ID.
  * @param (string) requestID - The request ID to send file to..
