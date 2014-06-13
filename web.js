@@ -21,6 +21,7 @@ var url = require('url');
 
 var __appData = {
 	debug: true,
+	IDLength: 15,
 	listenPort: 2000,
 	mime: {
 		'css': 'text/css',
@@ -245,12 +246,36 @@ var _pubsub = (function() {
 })();
 
 var init = (function() {
-	
+	var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
+	var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
 })();
 
 var api = (function() {
 	var server = http.createServer(function(req, res) {
-
+		var pathname = url.parse(req.url).pathname;
+		var requestID = _getID(__appData.IDLength);
+		if (req.method === 'GET') {
+			// test harness site
+			if (pathname === 'favicon.ico') {
+				_pubsub.pub('/action/client/status', [requestID, 404]);
+			} else if (pathname === 'test.html') {
+				_pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
+			} else if (pathname === 'test.js') {
+				_pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
+			} else if (pathname === 'test.css') {
+				_pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
+			} else {
+				_pubsub.pub('/actoin/client/status', [requestID, 404]);
+			}
+		} else if (req.method === 'POST') {
+			// POST
+		} else if (req.method === 'DELETE') {
+			// DELETE
+		} else if (req.method === 'PUT') {
+			// PUT
+		} else {
+			_pubsub.pub('/action/client/status', [requestID, 405]);
+		}
 	}).on('error', function(err) {
 		_log.err(err);
 	}).listen( __appData.listenPort );
