@@ -103,7 +103,7 @@ var _cleanup = function() {
  * @return (string) The generated ID.
  */
 var _getID = function( IDLength ) {
-	var IDLength = (typeof(IDLength) === 'number') ? IDLength : __serverData.requestIDLength;
+	var IDLength = (typeof(IDLength) === 'number') ? IDLength : __appData.requestIDLength;
 	var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 	var id = '';
 	for (var i=0; i<IDLength; i++) {
@@ -297,8 +297,9 @@ var init = (function() {
 var api = (function() {
 	var server = http.createServer(function(req, res) {
 		var pathname = url.parse(req.url).pathname;
-		var requestID = _getID(__appData.IDLength);
+		var requestID = _getID(__appData.requestIDLength);
 		var timestamp = Math.round(new Date().getTime()/1000.0);
+		_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
 		__appData.timestamps.last = timestamp
 		var client = {};
 		client['pathname'] = pathname;
@@ -307,16 +308,16 @@ var api = (function() {
 		__serverData.clients[requestID] = client;
 		if (req.method === 'GET') {
 			// test harness site
-			if (pathname === 'favicon.ico') {
+			if (pathname === '/favicon.ico') {
 				_pubsub.pub('/action/client/status', [requestID, 404]);
-			} else if (pathname === 'test.html') {
+			} else if (pathname === '/test.html') {
 				_pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
-			} else if (pathname === 'test.js') {
+			} else if (pathname === '/test.js') {
 				_pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
-			} else if (pathname === 'test.css') {
+			} else if (pathname === '/test.css') {
 				_pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
 			} else {
-				_pubsub.pub('/actoin/client/status', [requestID, 404]);
+				_pubsub.pub('/action/client/status', [requestID, 404]);
 			}
 		} else if (req.method === 'POST') {
 			// POST
