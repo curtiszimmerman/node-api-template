@@ -21,8 +21,11 @@
     "node"
   ],
   "author": "curtis zimmerman",
-  "license": "GPLv2",
+  "license": "GPLv3",
   "bugs": {
     "url": "https://github.com/curtiszimmerman/node-api-template/issues"
+  },
+  "dependencies": {
+    "chai": "~1.9.1"
   }
 }
