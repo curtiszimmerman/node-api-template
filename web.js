@@ -33,7 +33,6 @@ var url = require('url');
  *   up (integer) Timestamp of server startup.
  */
 var __appData = {
-	debug: true,
 	cache: {
 		cleanupInterval: 10,
 		maxIdleTime: 600,
@@ -49,6 +48,9 @@ var __appData = {
 		'png': 'image/png'
 	},
 	requestIDLength: 15,
+	state: {
+		debug: true
+	},
 	timestamps: {
 		last: 0,
 		up: 0
@@ -127,7 +129,7 @@ var _log = (function( data ) {
 		console.log(pre[type]+data);
 	};
 	var _dbg = function( data ) {
-		if (__appData.debug === true) _con(data, 0);
+		if (__appData.state.debug === true) _con(data, 0);
 	};
 	var _err = function( data ) {
 		_con(data, 1);
