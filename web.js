@@ -200,6 +200,7 @@ var _sendStatus = function( requestID, code, headers, callback ) {
 			break;
 		case 204:
 			message = "No Content";
+			break;
 		case 205:
 			message = "Continue";
 			break;
