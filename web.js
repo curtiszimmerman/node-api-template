@@ -14,7 +14,12 @@
  * @todo Build modularity for pluggable extensions (like Redis or SQS)
  */
 
-var assert = require('assert');
+/**
+ * @cite http://www.nczonline.net/blog/2012/03/13/its-time-to-start-using-javascript-strict-mode/
+ */
+"use strict";
+
+var assert = require('chai').assert;
 var fs = require('fs');
 var http = require('http');
 var url = require('url');
