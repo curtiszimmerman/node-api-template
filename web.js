@@ -195,6 +195,7 @@ var _sendFile = function( requestID, file, headers, callback ) {
  */
 var _sendStatus = function( requestID, code, headers, callback ) {
 	var headers = (typeof(headers) === 'object') ? headers : {};
+	var message;
 	switch (code) {
 		case 200:
 			message = "Success";
