@@ -1,5 +1,8 @@
 /**
- *
+ * @project node-api-template
  */
 
-var assert = require('chai').assert;
+var __unittest = (function() {
+	var assert = require('chai').assert;
+	mocha.setup('bdd');
+})();
