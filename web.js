@@ -26,6 +26,7 @@ module.exports = exports = api = (function() {
 	var assert = require('chai').assert;
 	var fs = require('fs');
 	var http = require('http');
+	var redis = require('redis');
 	var url = require('url');
 
 	/**
@@ -98,7 +99,7 @@ module.exports = exports = api = (function() {
 		var timestamp = Math.round(new Date().getTime()/1000.0);
 		for (var client in __serverData.clients) {
 			if (__serverData.clients.hasOwnProperty(client)) {
-				if (client.timestamp < (timestamp-(__appData.cache.maxIdleTime*1000))) {
+				if (client.timestamp < (timestamp-__appData.cache.maxIdleTime)) {
 					delete __serverData.clients[client];
 				}
 			}
