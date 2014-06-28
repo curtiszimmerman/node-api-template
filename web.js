@@ -229,6 +229,9 @@ module.exports = exports = api = (function() {
 			case 405:
 				message = "Method Not Supported";
 				break;
+			case 410:
+				message = "Gone";
+				break;
 			case 413:
 				message = "Request Entity Too Large";
 				break;
