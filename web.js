@@ -121,11 +121,7 @@ module.exports = exports = __api = (function() {
 			});
 			client.select(__appData.database.id);
 			client.hget('clients', requestID, function(err, data) {
-				if (err) {
-					_log.err("Redis.hget: "+err);
-				} else {
-					return callback && typeof(callback) === 'function' && callback(data);
-				}
+				return (err) ? _log.err("Redis.hget: "+err) : callback && typeof(callback) === 'function' && callback(data);
 			});
 			client.quit();
 		};
@@ -136,11 +132,7 @@ module.exports = exports = __api = (function() {
 			});
 			client.select(__appData.database.id);
 			client.hgetall('clients', function(err, reply) {
-				if (err) {
-					_log.err("Redis.hgetall: "+err);
-				} else {
-					return callback && typeof(callback) === 'function' && callback(reply);
-				}
+				return (err) ? _log.err("Redis.hgetall: "+err) : callback && typeof(callback) === 'function' && callback(reply);
 			});
 			client.quit();
 		};
@@ -151,11 +143,7 @@ module.exports = exports = __api = (function() {
 			});
 			client.select(__appData.database.id);
 			client.hset('clients', requestID, data, function(err, reply) {
-				if (err) {
-					_log.err("Redis.hset: "+err);
-				} else {
-					return callback && typeof(callback) === 'function' && callback(reply);
-				}
+				return (err) ? _log.err("Redis.hset: "+err) : callback && typeof(callback) === 'function' && callback(reply);
 			});
 			client.quit();
 		};
@@ -196,7 +184,7 @@ module.exports = exports = __api = (function() {
 	var _log = (function( data ) {
 		var _con = function( data, type ) {
 			var pre = ['[i] DEBUG: ', '[!] ERROR: ', '[+] '];
-			console.log(pre[type]+data);
+			return console.log(pre[type]+data);
 		};
 		var _dbg = function( data ) {
 			if (__appData.state.debug === true) _con(data, 0);
@@ -244,9 +232,7 @@ module.exports = exports = __api = (function() {
 				}
 			}
 		});
-		if (callback && typeof(callback) === 'function') {
-			callback();
-		}
+		return callback && typeof(callback) === 'function' && callback();
 	};
 
 	/**
@@ -308,9 +294,7 @@ module.exports = exports = __api = (function() {
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
 		client.res.write(JSON.stringify(result));
 		client.res.end();
-		if (callback && typeof(callback) === 'function') {
-			callback();
-		}
+		return callback && typeof(callback) === 'function' && callback();
 	};
 
 	/*\
