@@ -124,9 +124,7 @@ module.exports = exports = __api = (function() {
 				if (err) {
 					_log.err("Redis.hget: "+err);
 				} else {
-					if (callback && typeof(callback) === 'function') {
-						callback(data);
-					}
+					return callback && typeof(callback) === 'function' && callback(data);
 				}
 			});
 			client.quit();
@@ -141,9 +139,7 @@ module.exports = exports = __api = (function() {
 				if (err) {
 					_log.err("Redis.hgetall: "+err);
 				} else {
-					if (callback && typeof(callback) === 'function') {
-						callback(reply);
-					}
+					return callback && typeof(callback) === 'function' && callback(reply);
 				}
 			});
 			client.quit();
@@ -158,9 +154,7 @@ module.exports = exports = __api = (function() {
 				if (err) {
 					_log.err("Redis.hset: "+err);
 				} else {
-					if (callback && typeof(callback) === 'function') {
-						callback(reply);
-					}
+					return callback && typeof(callback) === 'function' && callback(reply);
 				}
 			});
 			client.quit();
