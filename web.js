@@ -131,13 +131,30 @@ module.exports = exports = __api = (function() {
 			});
 			client.quit();
 		};
+		var _getAll = function( requestID, callback ) {
+			var client = redis.createClient();
+			client.on('error', function(err) {
+				_log.err('Database call: '+err);
+			});
+			client.select(__appData.database.id);
+			client.hgetall('clients', function(err, reply) {
+				if (err) {
+					_log.err("Redis.hgetall: "+err);
+				} else {
+					if (callback && typeof(callback) === 'function') {
+						callback(reply);
+					}
+				}
+			});
+			client.quit();
+		};
 		var _set = function( requestID, data, callback ) {
 			var client = redis.createClient();
 			client.on('error', function(err) {
 				_log.err('Database call: '+err);
 			});
 			client.select(__appData.database.id);
-			client.hset('clients', requstID, data, function(err, reply) {
+			client.hset('clients', requestID, data, function(err, reply) {
 				if (err) {
 					_log.err("Redis.hset: "+err);
 				} else {
@@ -150,6 +167,7 @@ module.exports = exports = __api = (function() {
 		};
 		return {
 			get: _get,
+			getAll: _getAll,
 			set: _set
 		};
 	})();
@@ -350,8 +368,9 @@ module.exports = exports = __api = (function() {
 	var init = (function() {
 		var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
 		var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
-		var dataGetHandle = _pubsub.sub('/action/database/get', _data.get);
-		var dataSetHandle = _pubsub.sub('/action/database/set', _data.set);
+		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', _data.getAll);
+		var dataGetHandle = _pubsub.sub('/action/database/get/client', _data.get);
+		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
 		__appData.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
 			_cleanup();
@@ -387,6 +406,8 @@ module.exports = exports = __api = (function() {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
 				} else if (pathname === '/chai.js') {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
+				} else if (pathname === '/show_clients') {
+					_pubsub.pub('/actoin/database/get/all', [requestID]);
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}
