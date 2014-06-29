@@ -26,6 +26,8 @@
     "url": "https://github.com/curtiszimmerman/node-api-template/issues"
   },
   "dependencies": {
-    "chai": "~1.9.1"
+    "chai": "~1.9.1",
+    "hiredis": "",
+    "redis": ""
   }
 }

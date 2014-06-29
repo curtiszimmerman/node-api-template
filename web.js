@@ -17,7 +17,7 @@
 /**
  * @cite http://http://stackoverflow.com/questions/7137397/module-exports-vs-exports-in-nodejs
  */
-module.exports = exports = api = (function() {
+module.exports = exports = __api = (function() {
 	/**
 	 * @cite http://www.nczonline.net/blog/2012/03/13/its-time-to-start-using-javascript-strict-mode/
 	 */
@@ -46,6 +46,9 @@ module.exports = exports = api = (function() {
 		cache: {
 			cleanupInterval: 10,
 			maxIdleTime: 600,
+		},
+		database: {
+			id: 0
 		},
 		listenPort: 2000,
 		mime: {
@@ -105,6 +108,51 @@ module.exports = exports = api = (function() {
 			}
 		}
 	};
+
+	/**
+	 * @function _data
+	 * Interacts with database
+	 */
+	var _data = (function() {
+		var _get = function( requestID, callback ) {
+			var client = redis.createClient();
+			client.on('error', function(err) {
+				_log.err('Database call: '+err);
+			});
+			client.select(__appData.database.id);
+			client.hget('clients', requestID, function(err, data) {
+				if (err) {
+					_log.err("Redis.hget: "+err);
+				} else {
+					if (callback && typeof(callback) === 'function') {
+						callback(data);
+					}
+				}
+			});
+			client.quit();
+		};
+		var _set = function( requestID, data, callback ) {
+			var client = redis.createClient();
+			client.on('error', function(err) {
+				_log.err('Database call: '+err);
+			});
+			client.select(__appData.database.id);
+			client.hset('clients', requstID, data, function(err, reply) {
+				if (err) {
+					_log.err("Redis.hset: "+err);
+				} else {
+					if (callback && typeof(callback) === 'function') {
+						callback(reply);
+					}
+				}
+			});
+			client.quit();
+		};
+		return {
+			get: _get,
+			set: _set
+		};
+	})();
 
 	/**
 	 * @function _getID
@@ -302,6 +350,8 @@ module.exports = exports = api = (function() {
 	var init = (function() {
 		var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
 		var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
+		var dataGetHandle = _pubsub.sub('/action/database/get', _data.get);
+		var dataSetHandle = _pubsub.sub('/action/database/set', _data.set);
 		__appData.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
 			_cleanup();
@@ -320,6 +370,7 @@ module.exports = exports = api = (function() {
 			client['res'] = res;
 			client['timestamp'] = timestamp;
 			__serverData.clients[requestID] = client;
+			_pubsub.pub('/action/database/set', [requestID, client]);
 			if (req.method === 'GET') {
 				// test harness site
 				if (pathname === '/favicon.ico') {
