@@ -181,10 +181,11 @@ module.exports = exports = __api = (function() {
 	 * @return (boolean) Authentication success.
 	 */
 	var _key = (function() {
-		var _get = function() {
+		var _get = function( requestID ) {
 			return null;
 		};
-		var _verify = function( key ) {
+		var _verify = function( requestID, key ) {
+			// key is '1234' from '/api/key/verify/1234'
 			return false;
 		};
 		return {
@@ -421,8 +422,9 @@ module.exports = exports = __api = (function() {
 						version: __appData.version
 					};
 					_pubsub.pub('/action/client/status', [requestID, 200, {}, version]);
-				} else if (pathname === '/api/key/verify') {
-					_pubsub.pub('/action/api/key/verify', [requestID]);
+				} else if (pathname.indexOf('/api/key/verify/') > -1) {
+					var key = pathname.split('/')[4];
+					_pubsub.pub('/action/api/key/verify', [requestID, key]);
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}
