@@ -6,7 +6,7 @@
  * @author curtis zimmerman
  * @contact curtis.zimmerman@gmail.com
  * @license GPLv2
- * @version 0.0.1a
+ * @version 0.1.0b
  */
 
 /**
@@ -67,7 +67,8 @@ module.exports = exports = __api = (function() {
 		timestamps: {
 			last: 0,
 			up: 0
-		}
+		},
+		version: '0.1.0b'
 	};
 
 	/**
@@ -271,8 +272,9 @@ module.exports = exports = __api = (function() {
 	 * @param (function) callback - Callback on completion.
 	 * @return (bool) True on success.
 	 */
-	var _sendStatus = function( requestID, code, headers, callback ) {
+	var _sendStatus = function( requestID, code, headers, response, callback ) {
 		var headers = (typeof(headers) === 'object') ? headers : {};
+		var response = (typeof(response) === 'object') ? response : {};
 		var message;
 		switch (code) {
 			case 200:
@@ -314,12 +316,10 @@ module.exports = exports = __api = (function() {
 				break;
 		}
 		var client = __serverData.clients[requestID];
-		var result = {
-			message: message,
-			status: code
-		};
+		response['message'] = message;
+		response['status'] = code;
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
-		client.res.write(JSON.stringify(result));
+		client.res.write(JSON.stringify(response));
 		client.res.end();
 		return callback && typeof(callback) === 'function' && callback();
 	};
@@ -415,8 +415,12 @@ module.exports = exports = __api = (function() {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
 				} else if (pathname === '/show_clients') {
 					_pubsub.pub('/action/database/get/all', [requestID]);
-				} else if (pathname === '/api/key/get') {
-					_pubsub.pub('/action/api/key/get', [requestID]);
+				} else if (pathname === '/version') {
+					var version = {
+						uptime: (timestamp-__appData.timestamps.up),
+						version: __appData.version
+					};
+					_pubsub.pub('/action/client/status', [requestID, 200, {}, version]);
 				} else if (pathname === '/api/key/verify') {
 					_pubsub.pub('/action/api/key/verify', [requestID]);
 				} else {
@@ -424,6 +428,11 @@ module.exports = exports = __api = (function() {
 				}
 			} else if (req.method === 'POST') {
 				// POST
+				if (pathname === '/api/key/get') {
+					_pubsub.pub('/action/api/key/get', [requestID]);
+				} else {
+					_pubsub.pub('/action/client/status', [requestID, 404]);
+				}
 			} else if (req.method === 'DELETE') {
 				// DELETE
 			} else if (req.method === 'PUT') {
