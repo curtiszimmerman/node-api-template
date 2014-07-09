@@ -169,15 +169,44 @@ module.exports = exports = __api = (function() {
 	};
 
 	/**
+	 * @function _key
+	 * Exposes functions related to API key management.
+	 * @method get
+	 * Generates a new API key. 
+	 * @return (string) The generated API key.
+	 * @method verify
+	 * Authenticates an API key.
+	 * @param (string) API key to authenticate.
+	 * @return (boolean) Authentication success.
+	 */
+	var _key = (function() {
+		var _get = function() {
+			return null;
+		};
+		var _verify = function( key ) {
+			return false;
+		};
+		return {
+			get: _get,
+			verify: _verify
+		};
+	})();
+
+	/**
 	 * @function _log
 	 * Exposes three logging functions.
-	 * @param (string) data - The data to log.
 	 * @method dbg
 	 * Log a debug message if debugging is on.
+	 * @param (string) data - The data to log.
+	 * @return (boolean) Success indicator.
 	 * @method err
 	 * Log an error.
+	 * @param (string) data - The data to log.
+	 * @return (boolean) Success indicator.
 	 * @method log
 	 * Log a message.
+	 * @param (string) data - The data to log.
+	 * @return (boolean) Success indicator.
 	 */
 	var _log = (function( data ) {
 		var _con = function( data, type ) {
@@ -342,11 +371,13 @@ module.exports = exports = __api = (function() {
 	})();
 
 	var init = (function() {
-		var fileHandle = _pubsub.sub('/action/client/file', _sendFile);
-		var statusHandle = _pubsub.sub('/action/client/status', _sendStatus);
+		var clientFileHandle = _pubsub.sub('/action/client/file', _sendFile);
+		var clientStatusHandle = _pubsub.sub('/action/client/status', _sendStatus);
 		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', _data.getAll);
 		var dataGetHandle = _pubsub.sub('/action/database/get/client', _data.get);
 		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
+		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', _key.get);
+		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', _key.verify);
 		__appData.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
 			_cleanup();
@@ -383,7 +414,11 @@ module.exports = exports = __api = (function() {
 				} else if (pathname === '/chai.js') {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
 				} else if (pathname === '/show_clients') {
-					_pubsub.pub('/actoin/database/get/all', [requestID]);
+					_pubsub.pub('/action/database/get/all', [requestID]);
+				} else if (pathname === '/api/key/get') {
+					_pubsub.pub('/action/api/key/get', [requestID]);
+				} else if (pathname === '/api/key/verify') {
+					_pubsub.pub('/action/api/key/verify', [requestID]);
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}
