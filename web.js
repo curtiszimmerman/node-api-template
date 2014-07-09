@@ -52,13 +52,13 @@ module.exports = exports = __api = (function() {
 		},
 		listenPort: 2000,
 		mime: {
-			'css': 'text/css',
-			'gif': 'image/gif',
-			'html': 'text/html',
-			'ico': 'x-image/icon',
-			'jpg': 'image/jpeg',
-			'js': 'text/javascript',
-			'png': 'image/png'
+			css: 'text/css',
+			gif: 'image/gif',
+			html: 'text/html',
+			ico: 'image/x-icon',
+			jpg: 'image/jpeg',
+			js: 'text/javascript',
+			png: 'image/png'
 		},
 		requestIDLength: 15,
 		state: {
@@ -114,38 +114,36 @@ module.exports = exports = __api = (function() {
 	 * Interacts with database
 	 */
 	var _data = (function() {
-		var _get = function( requestID, callback ) {
+		var _callback = function( err, reply ) {
+			if (!reply) _pubsub.pub('/action/client/status', [requestID, 500]);
+			return (err) ? _log.err('Redis: '+err) : callback && typeof(callback) === 'function' && callback(reply);
+		};
+		var _connect = function( requestID, command, data, callback ) {
 			var client = redis.createClient();
 			client.on('error', function(err) {
-				_log.err('Database call: '+err);
+				_log.err('Redis: '+err);
 			});
 			client.select(__appData.database.id);
-			client.hget('clients', requestID, function(err, data) {
-				return (err) ? _log.err("Redis.hget: "+err) : callback && typeof(callback) === 'function' && callback(data);
-			});
+			if (command === 'get') {
+				client.hget('clients', requestID, _callback);
+			} else if (command === 'getall') {
+				client.hgetall('clients', _callback);
+			} else if (command === 'set') {
+				client.hset('clients', requestID, data, _callback)
+			} else {
+				_log.err('Redis: command not recognized ('+command+')');
+				return false;
+			}
 			client.quit();
+		};
+		var _get = function( requestID, callback ) {
+			return __connect(requestID, 'get', null, callback);
 		};
 		var _getAll = function( requestID, callback ) {
-			var client = redis.createClient();
-			client.on('error', function(err) {
-				_log.err('Database call: '+err);
-			});
-			client.select(__appData.database.id);
-			client.hgetall('clients', function(err, reply) {
-				return (err) ? _log.err("Redis.hgetall: "+err) : callback && typeof(callback) === 'function' && callback(reply);
-			});
-			client.quit();
+			return __connect(requestID, 'getall', null, callback);
 		};
 		var _set = function( requestID, data, callback ) {
-			var client = redis.createClient();
-			client.on('error', function(err) {
-				_log.err('Database call: '+err);
-			});
-			client.select(__appData.database.id);
-			client.hset('clients', requestID, data, function(err, reply) {
-				return (err) ? _log.err("Redis.hset: "+err) : callback && typeof(callback) === 'function' && callback(reply);
-			});
-			client.quit();
+			return __connect(requestID, 'hset', data, callback);
 		};
 		return {
 			get: _get,
