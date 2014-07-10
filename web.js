@@ -399,9 +399,30 @@ module.exports = exports = __api = (function() {
 			__serverData.clients[requestID] = client;
 			_pubsub.pub('/action/database/set', [requestID, client]);
 			if (req.method === 'GET') {
-				// test harness site
+				// BEGIN API front-end
 				if (pathname === '/favicon.ico') {
-					_pubsub.pub('/action/client/status', [requestID, 404]);
+                    _pubsub.pub('/action/client/status', [requestID, 404]);
+                } else if (pathname == '/index.html') {
+                    _pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
+                } else if (pathname == '/site.js') {
+                    _pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
+                } else if (pathname == '/default.css') {
+                    _pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
+				// END API front-end
+				// BEGIN API functions
+                } else if (pathname === '/show_clients') {
+                    _pubsub.pub('/action/database/get/all', [requestID]);
+                } else if (pathname === '/version') {
+                    var version = {
+                        uptime: (timestamp-__appData.timestamps.up),
+                        version: __appData.version
+                    };
+                    _pubsub.pub('/action/client/status', [requestID, 200, {}, version]);
+                } else if (pathname.indexOf('/api/key/verify/') > -1) {
+                    var key = pathname.split('/')[4];
+                    _pubsub.pub('/action/api/key/verify', [requestID, key]);
+				// END API functions
+				// BEGIN test site
 				} else if (pathname === '/test.html') {
 					_pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
 				} else if (pathname === '/test.js') {
@@ -414,17 +435,7 @@ module.exports = exports = __api = (function() {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
 				} else if (pathname === '/chai.js') {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
-				} else if (pathname === '/show_clients') {
-					_pubsub.pub('/action/database/get/all', [requestID]);
-				} else if (pathname === '/version') {
-					var version = {
-						uptime: (timestamp-__appData.timestamps.up),
-						version: __appData.version
-					};
-					_pubsub.pub('/action/client/status', [requestID, 200, {}, version]);
-				} else if (pathname.indexOf('/api/key/verify/') > -1) {
-					var key = pathname.split('/')[4];
-					_pubsub.pub('/action/api/key/verify', [requestID, key]);
+				// END test site (put your own site/api-specific features here)
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}
