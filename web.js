@@ -44,13 +44,14 @@ module.exports = exports = __api = (function() {
 	 */
 	var __appData = {
 		cache: {
+			clients: {},
 			cleanupInterval: 10,
 			maxIdleTime: 600,
 		},
 		database: {
 			id: 0
 		},
-		listenPort: 2000,
+		listenPort: 4488,
 		mime: {
 			css: 'text/css',
 			gif: 'image/gif',
@@ -64,19 +65,13 @@ module.exports = exports = __api = (function() {
 		state: {
 			debug: true
 		},
-		timestamps: {
-			last: 0,
-			up: 0
-		},
-		version: '0.1.0b'
-	};
-
-	/**
-	 * server data storage object
-	 * clients (object) Client connection cache.
-	 */
-	var __serverData = {
-		clients: {}
+		stats: {
+			timestamps: {
+				last: 0,
+				up: 0
+			},
+			version: '0.1.0b'
+		}
 	};
 
 	/**
@@ -101,10 +96,10 @@ module.exports = exports = __api = (function() {
 	 */
 	var _cleanup = function() {
 		var timestamp = Math.round(new Date().getTime()/1000.0);
-		for (var client in __serverData.clients) {
-			if (__serverData.clients.hasOwnProperty(client)) {
+		for (var client in __appData.cache.clients) {
+			if (__appData.cache.clients.hasOwnProperty(client)) {
 				if (client.timestamp < (timestamp-__appData.cache.maxIdleTime)) {
-					delete __serverData.clients[client];
+					delete __appData.cache.clients[client];
 				}
 			}
 		}
@@ -251,7 +246,7 @@ module.exports = exports = __api = (function() {
 						if (err) {
 							_log.err('fs.readFile(): '+err);
 						} else {
-							var client = __serverData.clients[requestID];
+							var client = __appData.cache.clients[requestID];
 							var type = file.substr(file.lastIndexOf('.')+1);
 							client.res.writeHead(200, {'Content-Type': __appData.mime[type]});
 							client.res.write(data);
@@ -316,7 +311,7 @@ module.exports = exports = __api = (function() {
 				message = "Internal Server Error";
 				break;
 		}
-		var client = __serverData.clients[requestID];
+		var client = __appData.cache.clients[requestID];
 		response['message'] = message;
 		response['status'] = code;
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
@@ -379,7 +374,7 @@ module.exports = exports = __api = (function() {
 		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
 		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', _key.get);
 		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', _key.verify);
-		__appData.timestamps.up = Math.round(new Date().getTime()/1000.0);
+		__appData.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
 			_cleanup();
 		}, __appData.cache.cleanupInterval*1000);
@@ -391,12 +386,12 @@ module.exports = exports = __api = (function() {
 			var requestID = _getID(__appData.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
-			__appData.timestamps.last = timestamp
+			__appData.stats.timestamps.last = timestamp
 			var client = {};
 			client['pathname'] = pathname;
 			client['res'] = res;
 			client['timestamp'] = timestamp;
-			__serverData.clients[requestID] = client;
+			__appData.cache.clients[requestID] = client;
 			_pubsub.pub('/action/database/set', [requestID, client]);
 			if (req.method === 'GET') {
 				// BEGIN API front-end
@@ -436,6 +431,11 @@ module.exports = exports = __api = (function() {
 				} else if (pathname === '/chai.js') {
 					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
 				// END test site (put your own site/api-specific features here)
+				} else if (pathname === '/die') {
+					// throw unhandled exception
+					throw new Error('unhandled exception! dying...');
+				} else if (pathname === '/hang') {
+					// just hang
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}

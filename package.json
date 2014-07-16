@@ -28,6 +28,7 @@
   "dependencies": {
     "chai": "~1.9.1",
     "hiredis": "",
+    "pm2": "",
     "redis": ""
   }
 }
