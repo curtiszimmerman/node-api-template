@@ -42,35 +42,49 @@ module.exports = exports = __api = (function() {
 	 *   last (integer) Timestamp of last activity.
 	 *   up (integer) Timestamp of server startup.
 	 */
-	var __appData = {
+	var __data = {
 		cache: {
 			clients: {},
-			cleanupInterval: 10,
-			maxIdleTime: 600,
+			settings: {
+				cleanupInterval: 10,
+				maxIdleTime: 600,
+				requestIDLength: 15
+			},
+			stats: {
+				cachedActual: 0,
+				cachedPredicted: 0,
+				error: 0,
+				processed: 0
+			}
+		},
+		content: {
+			mime: {
+				css: 'text/css',
+				gif: 'image/gif',
+				html: 'text/html',
+				ico: 'image/x-icon',
+				jpg: 'image/jpeg',
+				js: 'text/javascript',
+				png: 'image/png'
+			}
 		},
 		database: {
 			id: 0
 		},
-		listenPort: 4488,
-		mime: {
-			css: 'text/css',
-			gif: 'image/gif',
-			html: 'text/html',
-			ico: 'image/x-icon',
-			jpg: 'image/jpeg',
-			js: 'text/javascript',
-			png: 'image/png'
-		},
-		requestIDLength: 15,
-		state: {
-			debug: true
-		},
-		stats: {
-			timestamps: {
-				last: 0,
-				up: 0
+		server: {
+			listenPort: 4488,
+			state: {
+				debug: false,
+				environment: null,
+				environments: ['dev','prod']
 			},
-			version: '0.1.0b'
+			stats: {
+				timestamps: {
+					last: 0,
+					up: 0
+				},
+				version: '0.1.0b'
+			}
 		}
 	};
 
@@ -91,15 +105,15 @@ module.exports = exports = __api = (function() {
 	};
 
 	/**
-	 * @function _cleanup
+	 * @function _cacheCleanup
 	 * Cleans the client cache.
 	 */
-	var _cleanup = function() {
+	var _cacheCleanup = function() {
 		var timestamp = Math.round(new Date().getTime()/1000.0);
-		for (var client in __appData.cache.clients) {
-			if (__appData.cache.clients.hasOwnProperty(client)) {
-				if (client.timestamp < (timestamp-__appData.cache.maxIdleTime)) {
-					delete __appData.cache.clients[client];
+		for (var client in __data.cache.clients) {
+			if (__data.cache.clients.hasOwnProperty(client)) {
+				if (client.timestamp < (timestamp-__data.cache.settings.maxIdleTime)) {
+					delete __data.cache.clients[client];
 				}
 			}
 		}
@@ -119,7 +133,7 @@ module.exports = exports = __api = (function() {
 			client.on('error', function(err) {
 				_log.err('Redis: '+err);
 			});
-			client.select(__appData.database.id);
+			client.select(__data.database.id);
 			if (command === 'get') {
 				client.hget('clients', requestID, _callback);
 			} else if (command === 'getall') {
@@ -155,7 +169,7 @@ module.exports = exports = __api = (function() {
 	 * @return (string) The generated ID.
 	 */
 	var _getID = function( IDLength ) {
-		var IDLength = (typeof(IDLength) === 'number') ? IDLength : __appData.requestIDLength;
+		var IDLength = (typeof(IDLength) === 'number') ? IDLength : __data.cache.settings.requestIDLength;
 		var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 		var id = '';
 		for (var i=0; i<IDLength; i++) {
@@ -205,19 +219,19 @@ module.exports = exports = __api = (function() {
 	 * @param (string) data - The data to log.
 	 * @return (boolean) Success indicator.
 	 */
-	var _log = (function( data ) {
+	var _log = (function() {
 		var _con = function( data, type ) {
 			var pre = ['[i] DEBUG: ', '[!] ERROR: ', '[+] '];
 			return console.log(pre[type]+data);
 		};
 		var _dbg = function( data ) {
-			if (__appData.state.debug === true) _con(data, 0);
+			if (__data.server.state.debug === true) return _con(data, 0);
 		};
 		var _err = function( data ) {
-			_con(data, 1);
+			return _con(data, 1);
 		};
 		var _log = function( data ) {
-			_con(data, 2);
+			return _con(data, 2);
 		};
 		return {
 			dbg: _dbg,
@@ -246,9 +260,9 @@ module.exports = exports = __api = (function() {
 						if (err) {
 							_log.err('fs.readFile(): '+err);
 						} else {
-							var client = __appData.cache.clients[requestID];
+							var client = __data.cache.clients[requestID];
 							var type = file.substr(file.lastIndexOf('.')+1);
-							client.res.writeHead(200, {'Content-Type': __appData.mime[type]});
+							client.res.writeHead(200, {'Content-Type': __data.content.mime[type]});
 							client.res.write(data);
 							client.res.end();
 						}
@@ -311,7 +325,7 @@ module.exports = exports = __api = (function() {
 				message = "Internal Server Error";
 				break;
 		}
-		var client = __appData.cache.clients[requestID];
+		var client = __data.cache.clients[requestID];
 		response['message'] = message;
 		response['status'] = code;
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
@@ -319,6 +333,41 @@ module.exports = exports = __api = (function() {
 		client.res.end();
 		return callback && typeof(callback) === 'function' && callback();
 	};
+
+	/*\
+	|*| done ("async pattern") utility closure
+	\*/
+	var _done = (function() {
+		var cache = {};
+		function _after( num, callback ) {
+			var id = _gen(20);
+			if (!cache[id]) cache[id] = {id:id,left:num,callback:callback};
+			return id;
+		};
+		function _bump( id ) {
+			return (!cache[id]) ? false : (--cache[id].left == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
+		};
+		function _del( id ) {
+			return (cache[id]) ? delete cache[id] : false;
+		};
+		function _flush() {
+			cache = {};
+		};
+		function _gen( len ) {
+			for (var i=0,id='';i<len;i++,id+=Math.floor(Math.random()*10));
+			return +id;
+		};
+		function _left( id ) {
+			return (cache[id]) ? cache[id].left : -1;
+		};
+		return {
+			after: _after,
+			bump: _bump,
+			del: _del,
+			flush: _flush,
+			left: _left
+		};
+	})();
 
 	/*\
 	|*| pub/sub/unsub pattern utility closure
@@ -374,48 +423,64 @@ module.exports = exports = __api = (function() {
 		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
 		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', _key.get);
 		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', _key.verify);
-		__appData.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
+		__data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
-			_cleanup();
-		}, __appData.cache.cleanupInterval*1000);
+			_cacheCleanup();
+		}, __data.cache.settings.cleanupInterval*1000);
 	})();
 
 	var api = (function() {
 		var server = http.createServer(function(req, res) {
-			var pathname = url.parse(req.url).pathname;
-			var requestID = _getID(__appData.requestIDLength);
+			var inbound = url.parse(req.url);
+			var pathname = inbound.pathname;
+			var requestID = _getID(__data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
-			__appData.stats.timestamps.last = timestamp
+			__data.server.stats.timestamps.last = timestamp
 			var client = {};
 			client['pathname'] = pathname;
 			client['res'] = res;
 			client['timestamp'] = timestamp;
-			__appData.cache.clients[requestID] = client;
+			__data.cache.clients[requestID] = client;
 			_pubsub.pub('/action/database/set', [requestID, client]);
 			if (req.method === 'GET') {
 				// BEGIN API front-end
 				if (pathname === '/favicon.ico') {
-                    _pubsub.pub('/action/client/status', [requestID, 404]);
-                } else if (pathname == '/index.html') {
-                    _pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
-                } else if (pathname == '/site.js') {
-                    _pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
-                } else if (pathname == '/default.css') {
-                    _pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
+					_pubsub.pub('/action/client/status', [requestID, 404]);
+				} else if (pathname === '/index.html') {
+					_pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
+				} else if (pathname === '/site.js') {
+					_pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
+				} else if (pathname === '/default.css') {
+					_pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
 				// END API front-end
 				// BEGIN API functions
-                } else if (pathname === '/show_clients') {
-                    _pubsub.pub('/action/database/get/all', [requestID]);
-                } else if (pathname === '/version') {
-                    var version = {
-                        uptime: (timestamp-__appData.timestamps.up),
-                        version: __appData.version
-                    };
-                    _pubsub.pub('/action/client/status', [requestID, 200, {}, version]);
-                } else if (pathname.indexOf('/api/key/verify/') > -1) {
-                    var key = pathname.split('/')[4];
-                    _pubsub.pub('/action/api/key/verify', [requestID, key]);
+				} else if (pathname === '/show_clients') {
+					_pubsub.pub('/action/database/get/all', [requestID]);
+				} else if (pathname === '/stats') {
+					var statsResponse = {
+						clients: {
+							cachedActual: 0,
+							cachedPredicted: 0,
+							error: 0,
+							processed: 0
+						},
+						timestamps: {
+							last: 0,
+							now: 0,
+							uptime: (timestamp-__data.server.stats.timestamps.up)
+						},
+						version: __data.server.stats.version
+					};
+					_pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
+				} else if (pathname === '/version') {
+					var versionResponse = {
+						version: __data.server.stats.version
+					};
+					_pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
+				} else if (pathname.indexOf('/api/key/verify/') > -1) {
+					var key = pathname.split('/')[4];
+					_pubsub.pub('/action/api/key/verify', [requestID, key]);
 				// END API functions
 				// BEGIN test site
 				} else if (pathname === '/test.html') {
@@ -455,7 +520,7 @@ module.exports = exports = __api = (function() {
 			}
 		}).on('error', function(err) {
 			_log.err(err);
-		}).listen( __appData.listenPort );
-		_log.log('listening on tcp/'+__appData.listenPort);
+		}).listen( __data.server.listenPort );
+		_log.log('listening on tcp/'+__data.server.listenPort);
 	})();
 })();
