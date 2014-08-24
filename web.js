@@ -42,7 +42,7 @@ module.exports = exports = __api = (function() {
 	 *   last (integer) Timestamp of last activity.
 	 *   up (integer) Timestamp of server startup.
 	 */
-	var __data = {
+	var $data = {
 		cache: {
 			clients: {},
 			settings: {
@@ -97,26 +97,26 @@ module.exports = exports = __api = (function() {
 	 */
 	var _base64 = function( data, type ) {
 		var type = (typeof(type) === 'string') ? type : 'encode';
-		if (type === 'decode') {
-			return new Buffer(data, 'base64').toString('ascii');
-		} else {
-			return new Buffer(data).toString('base64');
-		}
+		return (type === 'decode') ? new Buffer(data, 'base64').toString('ascii') : new Buffer(data).toString('base64');
 	};
 
 	/**
 	 * @function _cacheCleanup
 	 * Cleans the client cache.
+	 * @param {string} requestID (optional) The client to clean out of the cache.
+	 * @return {boolean} True on success.
 	 */
-	var _cacheCleanup = function() {
+	var _cacheCleanup = function( requestID ) {
+		if (requestID) return delete $data.cache.clients[requestID];
 		var timestamp = Math.round(new Date().getTime()/1000.0);
-		for (var client in __data.cache.clients) {
-			if (__data.cache.clients.hasOwnProperty(client)) {
-				if (client.timestamp < (timestamp-__data.cache.settings.maxIdleTime)) {
-					delete __data.cache.clients[client];
+		for (var client in $data.cache.clients) {
+			if ($data.cache.clients.hasOwnProperty(client)) {
+				if (client.timestamp < (timestamp-$data.cache.settings.maxIdleTime)) {
+					return delete $data.cache.clients[client];
 				}
 			}
 		}
+		return false;
 	};
 
 	/**
@@ -133,7 +133,7 @@ module.exports = exports = __api = (function() {
 			client.on('error', function(err) {
 				_log.err('Redis: '+err);
 			});
-			client.select(__data.database.id);
+			client.select($data.database.id);
 			if (command === 'get') {
 				client.hget('clients', requestID, _callback);
 			} else if (command === 'getall') {
@@ -169,7 +169,7 @@ module.exports = exports = __api = (function() {
 	 * @return (string) The generated ID.
 	 */
 	var _getID = function( IDLength ) {
-		var IDLength = (typeof(IDLength) === 'number') ? IDLength : __data.cache.settings.requestIDLength;
+		var IDLength = (typeof(IDLength) === 'number') ? IDLength : $data.cache.settings.requestIDLength;
 		var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 		var id = '';
 		for (var i=0; i<IDLength; i++) {
@@ -225,7 +225,7 @@ module.exports = exports = __api = (function() {
 			return console.log(pre[type]+data);
 		};
 		var _dbg = function( data ) {
-			if (__data.server.state.debug === true) return _con(data, 0);
+			if ($data.server.state.debug === true) return _con(data, 0);
 		};
 		var _err = function( data ) {
 			return _con(data, 1);
@@ -260,9 +260,9 @@ module.exports = exports = __api = (function() {
 						if (err) {
 							_log.err('fs.readFile(): '+err);
 						} else {
-							var client = __data.cache.clients[requestID];
+							var client = $data.cache.clients[requestID];
 							var type = file.substr(file.lastIndexOf('.')+1);
-							client.res.writeHead(200, {'Content-Type': __data.content.mime[type]});
+							client.res.writeHead(200, {'Content-Type': $data.content.mime[type]});
 							client.res.write(data);
 							client.res.end();
 						}
@@ -325,7 +325,7 @@ module.exports = exports = __api = (function() {
 				message = "Internal Server Error";
 				break;
 		}
-		var client = __data.cache.clients[requestID];
+		var client = $data.cache.clients[requestID];
 		response['message'] = message;
 		response['status'] = code;
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
@@ -335,37 +335,33 @@ module.exports = exports = __api = (function() {
 	};
 
 	/*\
-	|*| done ("async pattern") utility closure
+	|*| done.abcde ("async pattern") utility closure
 	\*/
 	var _done = (function() {
 		var cache = {};
 		function _after( num, callback ) {
-			var id = _gen(20);
-			if (!cache[id]) cache[id] = {id:id,left:num,callback:callback};
+			for (var i=0,id='';i<10;i++,id+=Math.floor(Math.random()*10));
+			!cache[id] ? cache[id] = {id:id,count:num,callback:callback} : return _after(num,callback);
 			return id;
 		};
 		function _bump( id ) {
-			return (!cache[id]) ? false : (--cache[id].left == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
+			return (!cache[id]) ? false : (--cache[id].count == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
 		};
-		function _del( id ) {
+		function _count( id ) {
+			return (cache[id]) ? cache[id].count : -1;
+		};
+		function _dump( id ) {
 			return (cache[id]) ? delete cache[id] : false;
 		};
-		function _flush() {
+		function _empty() {
 			cache = {};
-		};
-		function _gen( len ) {
-			for (var i=0,id='';i<len;i++,id+=Math.floor(Math.random()*10));
-			return +id;
-		};
-		function _left( id ) {
-			return (cache[id]) ? cache[id].left : -1;
 		};
 		return {
 			after: _after,
 			bump: _bump,
-			del: _del,
-			flush: _flush,
-			left: _left
+			count: _count,
+			dump: _dump,
+			empty: _empty
 		};
 	})();
 
@@ -423,25 +419,25 @@ module.exports = exports = __api = (function() {
 		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
 		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', _key.get);
 		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', _key.verify);
-		__data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
+		$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
 			_cacheCleanup();
-		}, __data.cache.settings.cleanupInterval*1000);
+		}, $data.cache.settings.cleanupInterval*1000);
 	})();
 
 	var api = (function() {
 		var server = http.createServer(function(req, res) {
 			var inbound = url.parse(req.url);
 			var pathname = inbound.pathname;
-			var requestID = _getID(__data.cache.settings.requestIDLength);
+			var requestID = _getID($data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
-			__data.server.stats.timestamps.last = timestamp
+			$data.server.stats.timestamps.last = timestamp
 			var client = {};
 			client['pathname'] = pathname;
 			client['res'] = res;
 			client['timestamp'] = timestamp;
-			__data.cache.clients[requestID] = client;
+			$data.cache.clients[requestID] = client;
 			_pubsub.pub('/action/database/set', [requestID, client]);
 			if (req.method === 'GET') {
 				// BEGIN API front-end
@@ -468,14 +464,14 @@ module.exports = exports = __api = (function() {
 						timestamps: {
 							last: 0,
 							now: 0,
-							uptime: (timestamp-__data.server.stats.timestamps.up)
+							uptime: (timestamp-$data.server.stats.timestamps.up)
 						},
-						version: __data.server.stats.version
+						version: $data.server.stats.version
 					};
 					_pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
 				} else if (pathname === '/version') {
 					var versionResponse = {
-						version: __data.server.stats.version
+						version: $data.server.stats.version
 					};
 					_pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
 				} else if (pathname.indexOf('/api/key/verify/') > -1) {
@@ -520,7 +516,7 @@ module.exports = exports = __api = (function() {
 			}
 		}).on('error', function(err) {
 			_log.err(err);
-		}).listen( __data.server.listenPort );
-		_log.log('listening on tcp/'+__data.server.listenPort);
+		}).listen( $data.server.listenPort );
+		_log.log('listening on tcp/'+$data.server.listenPort);
 	})();
 })();
