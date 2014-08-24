@@ -169,12 +169,11 @@ module.exports = exports = __api = (function() {
 	 * @return (string) The generated ID.
 	 */
 	var _getID = function( IDLength ) {
-		var IDLength = (typeof(IDLength) === 'number') ? IDLength : $data.cache.settings.requestIDLength;
-		var charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-		var id = '';
-		for (var i=0; i<IDLength; i++) {
-			id += charset.substr(Math.floor(Math.random()*charset.length), 1);
-		}
+		for (
+			var i = 0, id = '', charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+			i < (typeof(IDLength) === 'number' ? IDLength : $data.cache.settings.requestIDLength);
+			i++, id += charset.substr(Math.floor(Math.random()*charset.length), 1)
+		);
 		return id;
 	};
 
@@ -254,23 +253,26 @@ module.exports = exports = __api = (function() {
 		fs.stat(file, function(err, stats) {
 			if (err) {
 				_log.err('fs.stat(): '+err);
+				_pubsub.pub('/action/client/status', [requestID, 500]);
 			} else {
 				if (stats.isFile()) {
 					fs.readFile(file, function(err, data) {
 						if (err) {
 							_log.err('fs.readFile(): '+err);
+							_pubsub.pub('/action/client/status', [requestID, 500]);
 						} else {
 							var client = $data.cache.clients[requestID];
 							var type = file.substr(file.lastIndexOf('.')+1);
 							client.res.writeHead(200, {'Content-Type': $data.content.mime[type]});
 							client.res.write(data);
 							client.res.end();
+							_cacheCleanup(requestID);
 						}
 					});
 				}
 			}
 		});
-		return callback && typeof(callback) === 'function' && callback();
+		return typeof(callback) === 'function' && callback();
 	};
 
 	/**
@@ -331,7 +333,8 @@ module.exports = exports = __api = (function() {
 		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
 		client.res.write(JSON.stringify(response));
 		client.res.end();
-		return callback && typeof(callback) === 'function' && callback();
+		_cacheCleanup(requestID);
+		return typeof(callback) === 'function' && callback();
 	};
 
 	/*\
@@ -341,8 +344,7 @@ module.exports = exports = __api = (function() {
 		var cache = {};
 		function _after( num, callback ) {
 			for (var i=0,id='';i<10;i++,id+=Math.floor(Math.random()*10));
-			!cache[id] ? cache[id] = {id:id,count:num,callback:callback} : return _after(num,callback);
-			return id;
+			return (!cache[id]) ? cache[id] = {id:id,count:num,callback:callback}.id : _after(num,callback);
 		};
 		function _bump( id ) {
 			return (!cache[id]) ? false : (--cache[id].count == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
