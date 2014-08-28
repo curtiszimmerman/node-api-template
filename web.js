@@ -344,7 +344,7 @@ module.exports = exports = __api = (function() {
 		var cache = {};
 		function _after( num, callback ) {
 			for (var i=0,id='';i<10;i++,id+=Math.floor(Math.random()*10));
-			return (!cache[id]) ? cache[id] = {id:id,count:num,callback:callback}, id : _after(num,callback);
+			return (!cache[id]) ? (cache[id] = {id:id,count:num,callback:callback}, id) : _after(num,callback);
 		};
 		function _bump( id ) {
 			return (!cache[id]) ? false : (--cache[id].count == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
