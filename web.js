@@ -26,6 +26,7 @@ module.exports = exports = __api = (function() {
 	var assert = require('chai').assert;
 	var fs = require('fs');
 	var http = require('http');
+	var qs = require('querystring');
 	var redis = require('redis');
 	var url = require('url');
 
@@ -288,44 +289,18 @@ module.exports = exports = __api = (function() {
 		var headers = (typeof(headers) === 'object') ? headers : {};
 		var response = (typeof(response) === 'object') ? response : {};
 		var message;
-		switch (code) {
-			case 200:
-				message = "Success";
-				break;
-			case 201:
-				message = "Created";
-				break;
-			case 202:
-				message = "Accepted";
-				break;
-			case 204:
-				message = "No Content";
-				break;
-			case 205:
-				message = "Continue";
-				break;
-			case 401:
-				message = "Unauthorized";
-				break;
-			case 403:
-				message = "Forbidden";
-				break;
-			case 404:
-				message = "Resource Not Found";
-				break;
-			case 405:
-				message = "Method Not Supported";
-				break;
-			case 410:
-				message = "Gone";
-				break;
-			case 413:
-				message = "Request Entity Too Large";
-				break;
-			default:
-				code = 500;
-				message = "Internal Server Error";
-				break;
+		var codes = {
+			100:"Continue",101:"Switching Protocols",102:"Processing",
+			200:"OK",201:"Created",202:"Accepted",203:"Non-Authoritative Information",204:"No Content",205:"Reset Content",206:"Partial Content",207:"Multi-Status",208:"Already Reported",226:"IM Used",
+			300:"Multiple Choices",301:"Moved Permanently",302:"Found",303:"See Other",304:"Not Modified",305:"Use Proxy",307:"Temporary Redirect",308:"Permanent Redirect",
+			400:"Bad Request",401:"Unauthorized",402:"Payment Required",403:"Forbidden",404:"Not Found",405:"Method Not Allowed",406:"Not Acceptable",407:"Proxy Authentication Required",408:"Request Timeout",409:"Conflict",410:"Gone",411:"Length Required",412:"Precondition Failed",413:"Payload Too Large",414:"URI Too Long",415:"Unsupported Media Type",416:"Range Not Satisfiable",417:"Expectation Failed",422:"Unprocessable Entity",423:"Locked",424:"Failed Dependency",426:"Upgrade Required",428:"Precondition Required",429:"Too Many Requests",431:"Request Header Fields Too Large",
+			500:"Internal Server Error",501:"Not Implemented",502:"Bad Gateway",503:"Service Unavailable",504:"Gateway Timeout",505:"HTTP Version Not Supported",506:"Variant Also Negotiates",507:"Insufficient Storage",508:"Loop Detected",510:"Not Extended",511:"Network Authentication Required"
+		};
+		if (typeof(codes[code]) !== 'undefined') {
+			message = codes[code];
+		} else {
+			code = 500;
+			message = codes[code];
 		}
 		var client = $data.cache.clients[requestID];
 		response['message'] = message;
@@ -431,6 +406,7 @@ module.exports = exports = __api = (function() {
 		var server = http.createServer(function(req, res) {
 			var inbound = url.parse(req.url);
 			var pathname = inbound.pathname;
+			var query = qs.parse(inbound.query);
 			var requestID = _getID($data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
@@ -476,9 +452,12 @@ module.exports = exports = __api = (function() {
 						version: $data.server.stats.version
 					};
 					_pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
-				} else if (pathname.indexOf('/api/key/verify/') > -1) {
-					var key = pathname.split('/')[4];
-					_pubsub.pub('/action/api/key/verify', [requestID, key]);
+				} else if (pathname === '/api/verify') {
+					if (typeof(query.key) !== 'undefined') {
+						_pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
+					} else {
+						_pubsub.pub('/action/client/status', [requestID, 400]);
+					}
 				// END API functions
 				// BEGIN test site
 				} else if (pathname === '/test.html') {
@@ -499,6 +478,12 @@ module.exports = exports = __api = (function() {
 					throw new Error('unhandled exception! dying...');
 				} else if (pathname === '/hang') {
 					// just hang
+				} else if (pathname === '/status') {
+					if (typeof(query.code) !== 'undefined') {
+						_pubsub.pub('/action/client/status', [requestID, query.code]);
+					} else {
+						_pubsub.pub('/action/client/status', [requestID, 400]);
+					}
 				} else {
 					_pubsub.pub('/action/client/status', [requestID, 404]);
 				}
@@ -507,12 +492,14 @@ module.exports = exports = __api = (function() {
 				if (pathname === '/api/key/get') {
 					_pubsub.pub('/action/api/key/get', [requestID]);
 				} else {
-					_pubsub.pub('/action/client/status', [requestID, 404]);
+					_pubsub.pub('/action/client/status', [requestID, 400]);
 				}
 			} else if (req.method === 'DELETE') {
 				// DELETE
+				_pubsub.pub('/action/client/status', [requestID, 501]);
 			} else if (req.method === 'PUT') {
 				// PUT
+				_pubsub.pub('/action/client/status', [requestID, 501]);
 			} else {
 				_pubsub.pub('/action/client/status', [requestID, 405]);
 			}
