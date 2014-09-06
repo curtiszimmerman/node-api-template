@@ -302,6 +302,12 @@ module.exports = exports = __api = (function() {
 			code = 500;
 			message = codes[code];
 		}
+		try {
+			response = JSON.stringify(response);
+		} catch (e) {
+			_log.err('_sendStatus(): cannot JSON.stringify response object: '+e.message);
+			return _pubsub.pub('/action/client/status', [requestID, 500]);
+		}
 		var client = $data.cache.clients[requestID];
 		response['message'] = message;
 		response['status'] = code;
