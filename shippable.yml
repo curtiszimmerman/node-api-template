@@ -8,9 +8,15 @@ language: node_js
 node_js:
   - 0.10.25
 
-# npm install runs by default
+# sample environment varialbes (encrypted vars created on shippable.com)
+#env:
+#  global:
+#    - EXAMPLE="foo"
+#    - secure: LXS5XWNAIC7PP7kcexkkkrtW4ncm02so1RyCY1Ufh3Dn+Q6sRH7n5IVr5ynmP+Tikj0i/+0jdGKPcH0zgYKhxNFg4Zcdf/9Oc4KJ2zR4+UrAh85zxyngBPS7qVt2Uu1rWMPvtem3mbq7DMI3dKnjwQwdavU7vIqZRaO9ZZbuu8usNA5rKPTIGPR1Qq+rpY34GDbnBU8HyD0IsBYqCA9zw8ZPcZDo+Mz9JfTrIjcwrFhPIMirONjkyS0jU/a31qV+5vgn165buiBy3eGqQf88+AmkrUh5HaNuWOM+330yXa+Na+IDHbhqSMyrRg42KZVRhEqmGisHxMdVWl7XqH+zjg==
+
+# npm install runs by default, but -g needs explicit mention
 #before_install:
-#  - npm install
+#  - npm install -g pm2
 
 script:
   - npm test
