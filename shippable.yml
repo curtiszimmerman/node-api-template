@@ -14,3 +14,11 @@ node_js:
 
 script:
   - npm test
+
+notifications:
+  email:
+    recipients:
+      - software@curtisz.com
+      - curtis.zimmerman@gmail.com
+    on_success: change
+    on_failure: always
