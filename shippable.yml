@@ -1,0 +1,16 @@
+# build environment
+#build_environment: Ubuntu 12.04
+
+# language setting
+language: node_js
+
+# version numbers
+node_js:
+  - 0.10.25
+
+# npm install runs by default
+#before_install:
+#  - npm install
+
+script:
+  - npm test
