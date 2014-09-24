@@ -92,117 +92,225 @@ module.exports = exports = __api = (function() {
 		}
 	};
 
-	/**
-	 * @function _base64
-	 * Encodes a string to base64, or decodes base64.to string.
-	 * @param (string) data The input string or base64.
-	 * @param (string) type The type of operation ('encode' or 'decode'). Default 'encode'.
-	 * @return (string) The en/decoded string.
-	 */
-	var _base64 = function( data, type ) {
-		var type = (typeof(type) === 'string') ? type : 'encode';
-		return (type === 'decode') ? new Buffer(data, 'base64').toString('ascii') : new Buffer(data).toString('base64');
-	};
-
-	/**
-	 * @function _cacheCleanup
-	 * Cleans the client cache.
-	 * @param {string} requestID (optional) The client to clean out of the cache.
-	 * @return {boolean} True on success.
-	 */
-	var _cacheCleanup = function( requestID ) {
-		if (requestID) return delete $data.cache.clients[requestID];
-		var timestamp = Math.round(new Date().getTime()/1000.0);
-		for (var client in $data.cache.clients) {
-			if ($data.cache.clients.hasOwnProperty(client)) {
-				if (client.timestamp < (timestamp-$data.cache.settings.maxIdleTime)) {
-					return delete $data.cache.clients[client];
+	var $func = {
+		/**
+		 * @function _base64
+		 * Encodes a string to base64, or decodes base64.to string.
+		 * @param (string) data The input string or base64.
+		 * @param (string) type The type of operation ('encode' or 'decode'). Default 'encode'.
+		 * @return (string) The en/decoded string.
+		 */
+		_base64: function( data, type ) {
+			var type = (typeof(type) === 'string') ? type : 'encode';
+			return (type === 'decode') ? new Buffer(data, 'base64').toString('ascii') : new Buffer(data).toString('base64');
+		},
+		/**
+		 * @function _cacheCleanup
+		 * Cleans the client cache.
+		 * @param {string} requestID (optional) The client to clean out of the cache.
+		 * @return {boolean} True on success.
+		 */
+		_cacheCleanup: function( requestID ) {
+			if (requestID) return delete $data.cache.clients[requestID];
+			var timestamp = Math.round(new Date().getTime()/1000.0);
+			for (var client in $data.cache.clients) {
+				if ($data.cache.clients.hasOwnProperty(client)) {
+					if (client.timestamp < (timestamp-$data.cache.settings.maxIdleTime)) {
+						return delete $data.cache.clients[client];
+					}
 				}
 			}
-		}
-		return false;
-	};
-
-	/**
-	 * @function _data
-	 * Interacts with database
-	 */
-	var _data = (function() {
-		var _callback = function( err, reply ) {
-			if (!reply) _pubsub.pub('/action/client/status', [requestID, 500]);
-			return (err) ? _log.err('Redis: '+err) : callback && typeof(callback) === 'function' && callback(reply);
-		};
-		var _connect = function( requestID, command, data, callback ) {
-			var client = redis.createClient();
-			client.on('error', function(err) {
-				_log.err('Redis: '+err);
-			});
-			client.select($data.database.id);
-			if (command === 'get') {
-				client.hget('clients', requestID, _callback);
-			} else if (command === 'getall') {
-				client.hgetall('clients', _callback);
-			} else if (command === 'set') {
-				client.hset('clients', requestID, data, _callback)
-			} else {
-				_log.err('Redis: command not recognized ('+command+')');
-				return false;
-			}
-			client.quit();
-		};
-		var _get = function( requestID, callback ) {
-			return __connect(requestID, 'get', null, callback);
-		};
-		var _getAll = function( requestID, callback ) {
-			return __connect(requestID, 'getall', null, callback);
-		};
-		var _set = function( requestID, data, callback ) {
-			return __connect(requestID, 'hset', data, callback);
-		};
-		return {
-			get: _get,
-			getAll: _getAll,
-			set: _set
-		};
-	})();
-
-	/**
-	 * @function _getID
-	 * Generates an alphanumeric ID key of specified length.
-	 * @param (int) IDLength - Length of the ID to create.
-	 * @return (string) The generated ID.
-	 */
-	var _getID = function( IDLength ) {
-		for (
-			var i = 0, id = '', charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-			i < (typeof(IDLength) === 'number' ? IDLength : $data.cache.settings.requestIDLength);
-			i++, id += charset.substr(Math.floor(Math.random()*charset.length), 1)
-		);
-		return id;
-	};
-
-	/**
-	 * @function _key
-	 * Exposes functions related to API key management.
-	 * @method get
-	 * Generates a new API key. 
-	 * @return (string) The generated API key.
-	 * @method verify
-	 * Authenticates an API key.
-	 * @param (string) API key to authenticate.
-	 * @return (boolean) Authentication success.
-	 */
-	var _key = (function() {
-		var _get = function( requestID ) {
-			return null;
-		};
-		var _verify = function( requestID, key ) {
-			// key is '1234' from '/api/key/verify/1234'
 			return false;
+		},
+		/**
+		 * @function _data
+		 * Interacts with database
+		 */
+		_data: (function() {
+			var _callback = function( err, reply ) {
+				if (!reply) _pubsub.pub('/action/client/status', [requestID, 500]);
+				return (err) ? _log.err('Redis: '+err) : callback && typeof(callback) === 'function' && callback(reply);
+			};
+			var _connect = function( requestID, command, data, callback ) {
+				var client = redis.createClient();
+				client.on('error', function(err) {
+					_log.err('Redis: '+err);
+				});
+				client.select($data.database.id);
+				if (command === 'get') {
+					client.hget('clients', requestID, _callback);
+				} else if (command === 'getall') {
+					client.hgetall('clients', _callback);
+				} else if (command === 'set') {
+					client.hset('clients', requestID, data, _callback)
+				} else {
+					_log.err('Redis: command not recognized ('+command+')');
+					return false;
+				}
+				client.quit();
+			};
+			var _get = function( requestID, callback ) {
+				return __connect(requestID, 'get', null, callback);
+			};
+			var _getAll = function( requestID, callback ) {
+				return __connect(requestID, 'getall', null, callback);
+			};
+			var _set = function( requestID, data, callback ) {
+				return __connect(requestID, 'hset', data, callback);
+			};
+			return {
+				get: _get,
+				getAll: _getAll,
+				set: _set
+			};
+		})(),
+		/**
+		 * @function _getID
+		 * Generates an alphanumeric ID key of specified length.
+		 * @param (int) IDLength - Length of the ID to create.
+		 * @return (string) The generated ID.
+		 */
+		_getID: function( IDLength ) {
+			for (
+				var i = 0, id = '', charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+				i < (typeof(IDLength) === 'number' ? IDLength : $data.cache.settings.requestIDLength);
+				i++, id += charset.substr(Math.floor(Math.random()*charset.length), 1)
+			);
+			return id;
+		},
+		/**
+		 * @function _key
+		 * Exposes functions related to API key management.
+		 * @method get
+		 * Generates a new API key. 
+		 * @return (string) The generated API key.
+		 * @method verify
+		 * Authenticates an API key.
+		 * @param (string) API key to authenticate.
+		 * @return (boolean) Authentication success.
+		 */
+		_key: (function() {
+			var _get = function( requestID ) {
+				return null;
+			};
+			var _verify = function( requestID, key ) {
+				// key is '1234' from '/api/key/verify/1234'
+				return false;
+			};
+			return {
+				get: _get,
+				verify: _verify
+			};
+		})(),
+		/**
+		 * @function _sendFile
+		 * Sends a file to the specified Request ID.
+		 * @param (string) requestID - The request ID to send file to..
+		 * @param (string) file - The file to send.
+		 * @param (object) headers - Additional headers for the request response.
+		 * @param (function) callback - Callback on completion.
+		 * @return (bool) True on success.
+		 */
+		_sendFile: function( requestID, file, headers, callback ) {
+			var headers = (typeof(headers) === 'object') ? headers : {};
+			fs.stat(file, function(err, stats) {
+				if (err) {
+					_log.err('fs.stat(): '+err);
+					_pubsub.pub('/action/client/status', [requestID, 500]);
+				} else {
+					if (stats.isFile()) {
+						fs.readFile(file, function(err, data) {
+							if (err) {
+								_log.err('fs.readFile(): '+err);
+								_pubsub.pub('/action/client/status', [requestID, 500]);
+							} else {
+								var client = $data.cache.clients[requestID];
+								var type = file.substr(file.lastIndexOf('.')+1);
+								headers['Content-Type'] = $data.content.mime[type];
+								if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+								client.res.writeHead(200, headers);
+								client.res.write(data);
+								client.res.end();
+								_cacheCleanup(requestID);
+							}
+						});
+					}
+				}
+			});
+			return typeof(callback) === 'function' && callback();
+		},
+		/**
+		 * @function _sendStatus
+		 * Sends an HTTP status (and JSON object) to the specified Request ID.
+		 * @param (string) requestID - The request ID to send file to..
+		 * @param (string) status - The status to send.
+		 * @param (object) headers - Additional headers for the request response.
+		 * @param (function) callback - Callback on completion.
+		 * @return (bool) True on success.
+		 */
+		_sendStatus: function( requestID, code, headers, response, callback ) {
+			var headers = (typeof(headers) === 'object') ? headers : {};
+			var response = (typeof(response) === 'object') ? response : {};
+			var message;
+			var codes = {
+				100:"Continue",101:"Switching Protocols",102:"Processing",
+				200:"OK",201:"Created",202:"Accepted",203:"Non-Authoritative Information",204:"No Content",205:"Reset Content",206:"Partial Content",207:"Multi-Status",208:"Already Reported",226:"IM Used",
+				300:"Multiple Choices",301:"Moved Permanently",302:"Found",303:"See Other",304:"Not Modified",305:"Use Proxy",307:"Temporary Redirect",308:"Permanent Redirect",
+				400:"Bad Request",401:"Unauthorized",402:"Payment Required",403:"Forbidden",404:"Not Found",405:"Method Not Allowed",406:"Not Acceptable",407:"Proxy Authentication Required",408:"Request Timeout",409:"Conflict",410:"Gone",411:"Length Required",412:"Precondition Failed",413:"Payload Too Large",414:"URI Too Long",415:"Unsupported Media Type",416:"Range Not Satisfiable",417:"Expectation Failed",422:"Unprocessable Entity",423:"Locked",424:"Failed Dependency",426:"Upgrade Required",428:"Precondition Required",429:"Too Many Requests",431:"Request Header Fields Too Large",
+				500:"Internal Server Error",501:"Not Implemented",502:"Bad Gateway",503:"Service Unavailable",504:"Gateway Timeout",505:"HTTP Version Not Supported",506:"Variant Also Negotiates",507:"Insufficient Storage",508:"Loop Detected",510:"Not Extended",511:"Network Authentication Required"
+			};
+			if (typeof(codes[code]) !== 'undefined') {
+				message = codes[code];
+			} else {
+				code = 500;
+				message = codes[code];
+			}
+			try {
+				response = JSON.stringify(response);
+			} catch (e) {
+				_log.err('_sendStatus(): cannot JSON.stringify response object: '+e.message);
+				return _pubsub.pub('/action/client/status', [requestID, 500]);
+			}
+			var client = $data.cache.clients[requestID];
+			response['message'] = message;
+			response['status'] = code;
+			headers['Content-Type'] = 'application/json';
+			if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+			client.res.writeHead(code, message, headers);
+			client.res.write(JSON.stringify(response));
+			client.res.end();
+			_cacheCleanup(requestID);
+			return typeof(callback) === 'function' && callback();
+		}
+	};
+
+	/*\
+	|*| done.abcde ("async pattern") utility closure
+	\*/
+	var _done = (function() {
+		var cache = {};
+		function _after( num, callback ) {
+			for (var i=0,id='';i<10;i++,id+=Math.floor(Math.random()*10));
+			return (!cache[id]) ? (cache[id] = {id:id,count:num,callback:callback}, id) : _after(num,callback);
+		};
+		function _bump( id ) {
+			return (!cache[id]) ? false : (--cache[id].count == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
+		};
+		function _count( id ) {
+			return (cache[id]) ? cache[id].count : -1;
+		};
+		function _dump( id ) {
+			return (cache[id]) ? delete cache[id] : false;
+		};
+		function _empty() {
+			cache = {};
 		};
 		return {
-			get: _get,
-			verify: _verify
+			after: _after,
+			bump: _bump,
+			count: _count,
+			dump: _dump,
+			empty: _empty
 		};
 	})();
 
@@ -240,118 +348,6 @@ module.exports = exports = __api = (function() {
 			dbg: _dbg,
 			err: _err,
 			log: _log
-		};
-	})();
-
-	/**
-	 * @function _sendFile
-	 * Sends a file to the specified Request ID.
-	 * @param (string) requestID - The request ID to send file to..
-	 * @param (string) file - The file to send.
-	 * @param (object) headers - Additional headers for the request response.
-	 * @param (function) callback - Callback on completion.
-	 * @return (bool) True on success.
-	 */
-	var _sendFile = function( requestID, file, headers, callback ) {
-		var headers = (typeof(headers) === 'object') ? headers : {};
-		fs.stat(file, function(err, stats) {
-			if (err) {
-				_log.err('fs.stat(): '+err);
-				_pubsub.pub('/action/client/status', [requestID, 500]);
-			} else {
-				if (stats.isFile()) {
-					fs.readFile(file, function(err, data) {
-						if (err) {
-							_log.err('fs.readFile(): '+err);
-							_pubsub.pub('/action/client/status', [requestID, 500]);
-						} else {
-							var client = $data.cache.clients[requestID];
-							var type = file.substr(file.lastIndexOf('.')+1);
-							headers['Content-Type'] = $data.content.mime[type];
-							if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
-							client.res.writeHead(200, headers);
-							client.res.write(data);
-							client.res.end();
-							_cacheCleanup(requestID);
-						}
-					});
-				}
-			}
-		});
-		return typeof(callback) === 'function' && callback();
-	};
-
-	/**
-	 * @function _sendStatus
-	 * Sends an HTTP status (and JSON object) to the specified Request ID.
-	 * @param (string) requestID - The request ID to send file to..
-	 * @param (string) status - The status to send.
-	 * @param (object) headers - Additional headers for the request response.
-	 * @param (function) callback - Callback on completion.
-	 * @return (bool) True on success.
-	 */
-	var _sendStatus = function( requestID, code, headers, response, callback ) {
-		var headers = (typeof(headers) === 'object') ? headers : {};
-		var response = (typeof(response) === 'object') ? response : {};
-		var message;
-		var codes = {
-			100:"Continue",101:"Switching Protocols",102:"Processing",
-			200:"OK",201:"Created",202:"Accepted",203:"Non-Authoritative Information",204:"No Content",205:"Reset Content",206:"Partial Content",207:"Multi-Status",208:"Already Reported",226:"IM Used",
-			300:"Multiple Choices",301:"Moved Permanently",302:"Found",303:"See Other",304:"Not Modified",305:"Use Proxy",307:"Temporary Redirect",308:"Permanent Redirect",
-			400:"Bad Request",401:"Unauthorized",402:"Payment Required",403:"Forbidden",404:"Not Found",405:"Method Not Allowed",406:"Not Acceptable",407:"Proxy Authentication Required",408:"Request Timeout",409:"Conflict",410:"Gone",411:"Length Required",412:"Precondition Failed",413:"Payload Too Large",414:"URI Too Long",415:"Unsupported Media Type",416:"Range Not Satisfiable",417:"Expectation Failed",422:"Unprocessable Entity",423:"Locked",424:"Failed Dependency",426:"Upgrade Required",428:"Precondition Required",429:"Too Many Requests",431:"Request Header Fields Too Large",
-			500:"Internal Server Error",501:"Not Implemented",502:"Bad Gateway",503:"Service Unavailable",504:"Gateway Timeout",505:"HTTP Version Not Supported",506:"Variant Also Negotiates",507:"Insufficient Storage",508:"Loop Detected",510:"Not Extended",511:"Network Authentication Required"
-		};
-		if (typeof(codes[code]) !== 'undefined') {
-			message = codes[code];
-		} else {
-			code = 500;
-			message = codes[code];
-		}
-		try {
-			response = JSON.stringify(response);
-		} catch (e) {
-			_log.err('_sendStatus(): cannot JSON.stringify response object: '+e.message);
-			return _pubsub.pub('/action/client/status', [requestID, 500]);
-		}
-		var client = $data.cache.clients[requestID];
-		response['message'] = message;
-		response['status'] = code;
-		headers['Content-Type'] = 'application/json';
-		if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
-		client.res.writeHead(code, message, headers);
-		client.res.write(JSON.stringify(response));
-		client.res.end();
-		_cacheCleanup(requestID);
-		return typeof(callback) === 'function' && callback();
-	};
-
-	/*\
-	|*| done.abcde ("async pattern") utility closure
-	\*/
-	var _done = (function() {
-		var cache = {};
-		function _after( num, callback ) {
-			for (var i=0,id='';i<10;i++,id+=Math.floor(Math.random()*10));
-			return (!cache[id]) ? (cache[id] = {id:id,count:num,callback:callback}, id) : _after(num,callback);
-		};
-		function _bump( id ) {
-			return (!cache[id]) ? false : (--cache[id].count == 0) ? cache[id].callback.apply() && _del(cache[id]) : true;
-		};
-		function _count( id ) {
-			return (cache[id]) ? cache[id].count : -1;
-		};
-		function _dump( id ) {
-			return (cache[id]) ? delete cache[id] : false;
-		};
-		function _empty() {
-			cache = {};
-		};
-		return {
-			after: _after,
-			bump: _bump,
-			count: _count,
-			dump: _dump,
-			empty: _empty
 		};
 	})();
 
@@ -401,7 +397,7 @@ module.exports = exports = __api = (function() {
 		};
 	})();
 
-	var init = (function() {
+	(function init() {
 		var clientFileHandle = _pubsub.sub('/action/client/file', _sendFile);
 		var clientStatusHandle = _pubsub.sub('/action/client/status', _sendStatus);
 		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', _data.getAll);
@@ -415,7 +411,7 @@ module.exports = exports = __api = (function() {
 		}, $data.cache.settings.cleanupInterval*1000);
 	})();
 
-	var api = (function() {
+	(function api() {
 		var server = http.createServer(function(req, res) {
 			var inbound = url.parse(req.url);
 			var pathname = inbound.pathname;
