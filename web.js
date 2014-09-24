@@ -367,6 +367,7 @@ module.exports = exports = __api = (function() {
 					currentTopic[i].apply(scope || this, args || []);
 				}
 			}
+			return true;
 		};
 		function _sub( topic, callback ) {
 			if (!cache[topic]) {
@@ -388,6 +389,7 @@ module.exports = exports = __api = (function() {
 					}
 				}
 			}
+			return true;
 		};
 		return {
 			flush: _flush,
@@ -429,17 +431,17 @@ module.exports = exports = __api = (function() {
 			if (req.method === 'GET') {
 				// BEGIN API front-end
 				if (pathname === '/favicon.ico') {
-					_pubsub.pub('/action/client/status', [requestID, 404]);
+					return _pubsub.pub('/action/client/status', [requestID, 404]);
 				} else if (pathname === '/index.html') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
 				} else if (pathname === '/site.js') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
 				} else if (pathname === '/default.css') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
 				// END API front-end
 				// BEGIN API functions
 				} else if (pathname === '/show_clients') {
-					_pubsub.pub('/action/database/get/all', [requestID]);
+					return _pubsub.pub('/action/database/get/all', [requestID]);
 				} else if (pathname === '/stats') {
 					var statsResponse = {
 						clients: {
@@ -455,32 +457,32 @@ module.exports = exports = __api = (function() {
 						},
 						version: $data.server.stats.version
 					};
-					_pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
+					return _pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
 				} else if (pathname === '/version') {
 					var versionResponse = {
 						version: $data.server.stats.version
 					};
-					_pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
+					return _pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
 				} else if (pathname === '/api/verify') {
 					if (typeof(query.key) !== 'undefined') {
-						_pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
+						return _pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
 					} else {
-						_pubsub.pub('/action/client/status', [requestID, 400]);
+						return _pubsub.pub('/action/client/status', [requestID, 400]);
 					}
 				// END API functions
 				// BEGIN test site
 				} else if (pathname === '/test.html') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
 				} else if (pathname === '/test.js') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
 				} else if (pathname === '/test.css') {
-					_pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
+					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
 				} else if (pathname === '/mocha.css') {
-					_pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.css']);
+					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.css']);
 				} else if (pathname === '/mocha.js') {
-					_pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
+					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
 				} else if (pathname === '/chai.js') {
-					_pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
+					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
 				// END test site (put your own site/api-specific features here)
 				} else if (pathname === '/die') {
 					// throw unhandled exception
@@ -489,28 +491,28 @@ module.exports = exports = __api = (function() {
 					// just hang
 				} else if (pathname === '/status') {
 					if (typeof(query.code) !== 'undefined') {
-						_pubsub.pub('/action/client/status', [requestID, query.code]);
+						return _pubsub.pub('/action/client/status', [requestID, query.code]);
 					} else {
-						_pubsub.pub('/action/client/status', [requestID, 400]);
+						return _pubsub.pub('/action/client/status', [requestID, 400]);
 					}
 				} else {
-					_pubsub.pub('/action/client/status', [requestID, 404]);
+					return _pubsub.pub('/action/client/status', [requestID, 404]);
 				}
 			} else if (req.method === 'POST') {
 				// POST
 				if (pathname === '/api/key/get') {
-					_pubsub.pub('/action/api/key/get', [requestID]);
+					return _pubsub.pub('/action/api/key/get', [requestID]);
 				} else {
-					_pubsub.pub('/action/client/status', [requestID, 400]);
+					return _pubsub.pub('/action/client/status', [requestID, 400]);
 				}
 			} else if (req.method === 'DELETE') {
 				// DELETE
-				_pubsub.pub('/action/client/status', [requestID, 501]);
+				return _pubsub.pub('/action/client/status', [requestID, 501]);
 			} else if (req.method === 'PUT') {
 				// PUT
-				_pubsub.pub('/action/client/status', [requestID, 501]);
+				return _pubsub.pub('/action/client/status', [requestID, 501]);
 			} else {
-				_pubsub.pub('/action/client/status', [requestID, 405]);
+				return _pubsub.pub('/action/client/status', [requestID, 405]);
 			}
 		}).on('error', function(err) {
 			_log.err(err);
