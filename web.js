@@ -67,6 +67,9 @@ module.exports = exports = __api = (function() {
 				jpg: 'image/jpeg',
 				js: 'text/javascript',
 				png: 'image/png'
+			},
+			settings: {
+				cors: true
 			}
 		},
 		database: {
@@ -264,7 +267,9 @@ module.exports = exports = __api = (function() {
 						} else {
 							var client = $data.cache.clients[requestID];
 							var type = file.substr(file.lastIndexOf('.')+1);
-							client.res.writeHead(200, {'Content-Type': $data.content.mime[type]});
+							headers['Content-Type'] = $data.content.mime[type];
+							if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+							client.res.writeHead(200, headers);
 							client.res.write(data);
 							client.res.end();
 							_cacheCleanup(requestID);
@@ -311,7 +316,9 @@ module.exports = exports = __api = (function() {
 		var client = $data.cache.clients[requestID];
 		response['message'] = message;
 		response['status'] = code;
-		client.res.writeHead(code, message, {'Content-Type': 'application/json'});
+		headers['Content-Type'] = 'application/json';
+		if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+		client.res.writeHead(code, message, headers);
 		client.res.write(JSON.stringify(response));
 		client.res.end();
 		_cacheCleanup(requestID);
