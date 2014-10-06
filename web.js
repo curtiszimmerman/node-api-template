@@ -100,17 +100,17 @@ module.exports = exports = __api = (function() {
 		 * @param (string) type The type of operation ('encode' or 'decode'). Default 'encode'.
 		 * @return (string) The en/decoded string.
 		 */
-		_base64: function( data, type ) {
+		base64: function( data, type ) {
 			var type = (typeof(type) === 'string') ? type : 'encode';
 			return (type === 'decode') ? new Buffer(data, 'base64').toString('ascii') : new Buffer(data).toString('base64');
 		},
 		/**
-		 * @function _cacheCleanup
+		 * @function $func.cacheCleanup
 		 * Cleans the client cache.
 		 * @param {string} requestID (optional) The client to clean out of the cache.
 		 * @return {boolean} True on success.
 		 */
-		_cacheCleanup: function( requestID ) {
+		cacheCleanup: function( requestID ) {
 			if (requestID) return delete $data.cache.clients[requestID];
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			for (var client in $data.cache.clients) {
@@ -123,10 +123,10 @@ module.exports = exports = __api = (function() {
 			return false;
 		},
 		/**
-		 * @function _data
+		 * @function $func.data
 		 * Interacts with database
 		 */
-		_data: (function() {
+		data: (function() {
 			var _callback = function( err, reply ) {
 				if (!reply) _pubsub.pub('/action/client/status', [requestID, 500]);
 				return (err) ? _log.err('Redis: '+err) : callback && typeof(callback) === 'function' && callback(reply);
@@ -165,12 +165,12 @@ module.exports = exports = __api = (function() {
 			};
 		})(),
 		/**
-		 * @function _getID
+		 * @function $func.getID
 		 * Generates an alphanumeric ID key of specified length.
 		 * @param (int) IDLength - Length of the ID to create.
 		 * @return (string) The generated ID.
 		 */
-		_getID: function( IDLength ) {
+		getID: function( IDLength ) {
 			for (
 				var i = 0, id = '', charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 				i < (typeof(IDLength) === 'number' ? IDLength : $data.cache.settings.requestIDLength);
@@ -179,7 +179,7 @@ module.exports = exports = __api = (function() {
 			return id;
 		},
 		/**
-		 * @function _key
+		 * @function $func.key
 		 * Exposes functions related to API key management.
 		 * @method get
 		 * Generates a new API key. 
@@ -189,7 +189,7 @@ module.exports = exports = __api = (function() {
 		 * @param (string) API key to authenticate.
 		 * @return (boolean) Authentication success.
 		 */
-		_key: (function() {
+		key: (function() {
 			var _get = function( requestID ) {
 				return null;
 			};
@@ -203,7 +203,7 @@ module.exports = exports = __api = (function() {
 			};
 		})(),
 		/**
-		 * @function _sendFile
+		 * @function $func.sendFile
 		 * Sends a file to the specified Request ID.
 		 * @param (string) requestID - The request ID to send file to..
 		 * @param (string) file - The file to send.
@@ -211,7 +211,7 @@ module.exports = exports = __api = (function() {
 		 * @param (function) callback - Callback on completion.
 		 * @return (bool) True on success.
 		 */
-		_sendFile: function( requestID, file, headers, callback ) {
+		sendFile: function( requestID, file, headers, callback ) {
 			var headers = (typeof(headers) === 'object') ? headers : {};
 			fs.stat(file, function(err, stats) {
 				if (err) {
@@ -231,7 +231,7 @@ module.exports = exports = __api = (function() {
 								client.res.writeHead(200, headers);
 								client.res.write(data);
 								client.res.end();
-								_cacheCleanup(requestID);
+								$func.cacheCleanup(requestID);
 							}
 						});
 					}
@@ -240,7 +240,7 @@ module.exports = exports = __api = (function() {
 			return typeof(callback) === 'function' && callback();
 		},
 		/**
-		 * @function _sendStatus
+		 * @function $func.sendStatus
 		 * Sends an HTTP status (and JSON object) to the specified Request ID.
 		 * @param (string) requestID - The request ID to send file to..
 		 * @param (string) status - The status to send.
@@ -248,7 +248,7 @@ module.exports = exports = __api = (function() {
 		 * @param (function) callback - Callback on completion.
 		 * @return (bool) True on success.
 		 */
-		_sendStatus: function( requestID, code, headers, response, callback ) {
+		sendStatus: function( requestID, code, headers, response, callback ) {
 			var headers = (typeof(headers) === 'object') ? headers : {};
 			var response = (typeof(response) === 'object') ? response : {};
 			var message;
@@ -268,7 +268,7 @@ module.exports = exports = __api = (function() {
 			try {
 				response = JSON.stringify(response);
 			} catch (e) {
-				_log.err('_sendStatus(): cannot JSON.stringify response object: '+e.message);
+				_log.err('$func.sendStatus(): cannot JSON.stringify response object: '+e.message);
 				return _pubsub.pub('/action/client/status', [requestID, 500]);
 			}
 			var client = $data.cache.clients[requestID];
@@ -279,7 +279,7 @@ module.exports = exports = __api = (function() {
 			client.res.writeHead(code, message, headers);
 			client.res.write(JSON.stringify(response));
 			client.res.end();
-			_cacheCleanup(requestID);
+			$func.cacheCleanup(requestID);
 			return typeof(callback) === 'function' && callback();
 		}
 	};
@@ -400,16 +400,16 @@ module.exports = exports = __api = (function() {
 	})();
 
 	(function init() {
-		var clientFileHandle = _pubsub.sub('/action/client/file', _sendFile);
-		var clientStatusHandle = _pubsub.sub('/action/client/status', _sendStatus);
-		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', _data.getAll);
-		var dataGetHandle = _pubsub.sub('/action/database/get/client', _data.get);
-		var dataSetHandle = _pubsub.sub('/action/database/set/client', _data.set);
-		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', _key.get);
-		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', _key.verify);
+		var clientFileHandle = _pubsub.sub('/action/client/file', $func.sendFile);
+		var clientStatusHandle = _pubsub.sub('/action/client/status', $func.sendStatus);
+		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', $func.data.getAll);
+		var dataGetHandle = _pubsub.sub('/action/database/get/client', $func.data.get);
+		var dataSetHandle = _pubsub.sub('/action/database/set/client', $func.data.set);
+		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', $func.key.get);
+		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', $func.key.verify);
 		$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
 		setInterval(function() {
-			_cacheCleanup();
+			$func.cacheCleanup();
 		}, $data.cache.settings.cleanupInterval*1000);
 	})();
 
@@ -418,7 +418,7 @@ module.exports = exports = __api = (function() {
 			var inbound = url.parse(req.url);
 			var pathname = inbound.pathname;
 			var query = qs.parse(inbound.query);
-			var requestID = _getID($data.cache.settings.requestIDLength);
+			var requestID = $func.getID($data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
 			$data.server.stats.timestamps.last = timestamp
