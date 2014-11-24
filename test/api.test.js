@@ -4,6 +4,9 @@
 
 var __test = (function() {
 	"use strict";
+
+	var api = require('../web.js');
+	
 	var expect = require('chai').expect;
 	
 	describe('node-api-template', function() {

@@ -2,3 +2,17 @@
 language: node_js
 node_js:
   - "0.10"
+branches:
+  only:
+    - master
+notifications:
+  irc:
+    template:
+      - "*%{result}* %{repository}#%{build_number} (%{branch} - %{commit}: ${author})"
+      - "commit message: %{commit_message}"
+      - "change view: %{compare_url}"
+      - "build detalis: %{build_url}"
+    channels:
+      - "irc.freenode.net#sulfurworks"
+      - "irc.freenode.net#mediamoat"
+      - "irc.freenode.net#mediamoat-dev"
