@@ -5,7 +5,7 @@
 var __test = (function() {
 	"use strict";
 
-	var api = require('../web.js');
+	var api = require('../api.js');
 	
 	var expect = require('chai').expect;
 	
