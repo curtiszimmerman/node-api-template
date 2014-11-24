@@ -131,8 +131,8 @@ module.exports = exports = __api = (function() {
 			for (
 				var i = 0, id = '', charset = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
 				i < (typeof(IDLength) === 'number' ? IDLength : $data.cache.settings.requestIDLength);
-				i++, id += charset.substr(Math.floor(Math.random()*charset.length), 1)
-			);
+				i++
+			) {	id += charset.substr(Math.floor(Math.random()*charset.length), 1); }
 			return id;
 		},
 		/**
