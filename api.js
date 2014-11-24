@@ -23,11 +23,10 @@ module.exports = exports = __api = (function() {
 	 */
 	"use strict";
 
-	var assert = require('chai').assert;
 	var fs = require('fs');
+	var gigo = require('gigo');
 	var http = require('http');
 	var qs = require('querystring');
-	var redis = require('redis');
 	var url = require('url');
 
 	/**
