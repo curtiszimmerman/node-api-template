@@ -6,7 +6,7 @@
  * @author curtis zimmerman
  * @contact curtis.zimmerman@gmail.com
  * @license GPLv2
- * @version 0.1.0b
+ * @version 0.0.2
  */
 
 /**
@@ -87,7 +87,7 @@ module.exports = exports = __api = (function() {
 					last: 0,
 					up: 0
 				},
-				version: '0.1.0b'
+				version: '0.0.2'
 			}
 		}
 	};
