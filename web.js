@@ -123,48 +123,6 @@ module.exports = exports = __api = (function() {
 			return false;
 		},
 		/**
-		 * @function $func.data
-		 * Interacts with database
-		 */
-		data: (function() {
-			var _callback = function( err, reply ) {
-				if (!reply) _pubsub.pub('/action/client/status', [requestID, 500]);
-				return (err) ? _log.err('Redis: '+err) : callback && typeof(callback) === 'function' && callback(reply);
-			};
-			var _connect = function( requestID, command, data, callback ) {
-				var client = redis.createClient();
-				client.on('error', function(err) {
-					_log.err('Redis: '+err);
-				});
-				client.select($data.database.id);
-				if (command === 'get') {
-					client.hget('clients', requestID, _callback);
-				} else if (command === 'getall') {
-					client.hgetall('clients', _callback);
-				} else if (command === 'set') {
-					client.hset('clients', requestID, data, _callback)
-				} else {
-					_log.err('Redis: command not recognized ('+command+')');
-					return false;
-				}
-				client.quit();
-			};
-			var _get = function( requestID, callback ) {
-				return __connect(requestID, 'get', null, callback);
-			};
-			var _getAll = function( requestID, callback ) {
-				return __connect(requestID, 'getall', null, callback);
-			};
-			var _set = function( requestID, data, callback ) {
-				return __connect(requestID, 'hset', data, callback);
-			};
-			return {
-				get: _get,
-				getAll: _getAll,
-				set: _set
-			};
-		})(),
-		/**
 		 * @function $func.getID
 		 * Generates an alphanumeric ID key of specified length.
 		 * @param (int) IDLength - Length of the ID to create.
@@ -402,9 +360,8 @@ module.exports = exports = __api = (function() {
 	(function init() {
 		var clientFileHandle = _pubsub.sub('/action/client/file', $func.sendFile);
 		var clientStatusHandle = _pubsub.sub('/action/client/status', $func.sendStatus);
-		var dataGetAllHandle = _pubsub.sub('/action/database/get/all', $func.data.getAll);
-		var dataGetHandle = _pubsub.sub('/action/database/get/client', $func.data.get);
-		var dataSetHandle = _pubsub.sub('/action/database/set/client', $func.data.set);
+		var dataGetHandle = _pubsub.sub('/action/database/get/client', gigo.get);
+		var dataSetHandle = _pubsub.sub('/action/database/set/client', gigo.set);
 		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', $func.key.get);
 		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', $func.key.verify);
 		$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
