@@ -2,7 +2,7 @@
  * @project node-api-template
  */
 
-var __unittest = (function() {
+var __test = (function() {
 	"use strict";
 	var expect = require('chai').expect;
 	
