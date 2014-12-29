@@ -12,6 +12,6 @@ WORKDIR /var/www/node-api-template/
 RUN npm -g install
 RUN npm install
 
-EXPOSE 4488
+EXPOSE 80
 
 CMD ["/nodejs/bin/node", "/var/www/node-api-template/api.js"]
