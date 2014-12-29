@@ -24,7 +24,7 @@ module.exports = exports = __api = (function() {
 	"use strict";
 
 	var fs = require('fs');
-	var gigo = require('gigo');
+	//var gigo = require('gigo');
 	var http = require('http');
 	var qs = require('querystring');
 	var url = require('url');
