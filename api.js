@@ -24,10 +24,11 @@ module.exports = exports = __api = (function() {
 	"use strict";
 
 	var fs = require('fs');
-	//var gigo = require('gigo');
+	var gigo = null;
 	var http = require('http');
 	var qs = require('querystring');
 	var url = require('url');
+	var yargs = require('yargs');
 
 	/**
 	 * application data storage object
@@ -72,14 +73,20 @@ module.exports = exports = __api = (function() {
 			}
 		},
 		database: {
+			active: false,
 			id: 0
 		},
 		server: {
+			args: {},
 			listenPort: 4488,
 			state: {
-				debug: false,
+				development: false,
 				environment: null,
-				environments: ['dev','prod']
+				environments: ['dev','prod'],
+				logs: {
+					level: 1,
+					quiet: false
+				}
 			},
 			stats: {
 				timestamps: {
@@ -148,13 +155,13 @@ module.exports = exports = __api = (function() {
 				var headers = (typeof(headers) === 'object') ? headers : {};
 				fs.stat(file, function(err, stats) {
 					if (err) {
-						_log.err('fs.stat(): '+err);
+						_log.error('fs.stat(): '+err);
 						_pubsub.pub('/action/client/status', [requestID, 500]);
 					} else {
 						if (stats.isFile()) {
 							fs.readFile(file, function(err, data) {
 								if (err) {
-									_log.err('fs.readFile(): '+err);
+									_log.error('fs.readFile(): '+err);
 									_pubsub.pub('/action/client/status', [requestID, 500]);
 								} else {
 									var client = $data.cache.clients[requestID];
@@ -201,7 +208,7 @@ module.exports = exports = __api = (function() {
 				try {
 					response = JSON.stringify(response);
 				} catch (e) {
-					_log.err('$func.sendStatus(): cannot JSON.stringify response object: '+e.message);
+					_log.error('$func.sendStatus(): cannot JSON.stringify response object: '+e.message);
 					return _pubsub.pub('/action/client/status', [requestID, 500]);
 				}
 				var client = $data.cache.clients[requestID];
@@ -303,23 +310,24 @@ module.exports = exports = __api = (function() {
 	 * @return (boolean) Success indicator.
 	 */
 	var _log = (function() {
-		var _con = function( data, type ) {
-			var pre = ['[i] DEBUG: ', '[!] ERROR: ', '[+] '];
-			return console.log(pre[type]+data);
+		var _con = function( data, loglevel ) {
+			var pre = ['[!] ERROR: ', '[+] ', '[i] WARN: ', '[i] INFO: ', '[i] DEBUG: '];
+			return console.log(pre[loglevel]+data);
 		};
-		var _dbg = function( data ) {
-			if ($data.server.state.debug === true) return _con(data, 0);
+		var _debug = function( data ) { return _con(data, 4);};
+		var _error = function( data ) { return _con(data, 0);};
+		var _info = function( data ) { return _con(data, 3);};
+		var _log = function( data, loglevel ) {
+			var loglevel = typeof(loglevel) === 'undefined' ? 1 : loglevel > 4 ? 4 : loglevel;
+			return $data.server.state.logs.quiet ? loglevel === 0 && _con(data, 0) : loglevel <= $data.server.state.logs.level && _con(data, loglevel);
 		};
-		var _err = function( data ) {
-			return _con(data, 1);
-		};
-		var _log = function( data ) {
-			return _con(data, 2);
-		};
+		var _warn = function( data ) { return _con(data, 2);};
 		return {
-			dbg: _dbg,
-			err: _err,
-			log: _log
+			debug: _debug,
+			error: _error,
+			info: _info,
+			log: _log,
+			warn: _warn
 		};
 	})();
 
@@ -372,10 +380,23 @@ module.exports = exports = __api = (function() {
 	})();
 
 	function init() {
+		$data.server.argv = yargs
+			.usage('Usage: $0 [-d|--database] [-q|--quiet] [-v verbosity]')
+			.alias('d', 'database')
+			.alias('q', 'quiet')
+			.count('verbose')
+			.alias('v', 'verbose')
+			.argv;
+		if ($data.server.argv.database) $data.database.active = true;
+		if ($data.server.argv.verbose) $data.server.state.logs.level = $data.server.argv.verbose+1;
+		if ($data.server.argv.quiet) $data.server.state.logs.quiet = true;
 		var clientFileHandle = _pubsub.sub('/action/client/file', $func.send.file);
 		var clientStatusHandle = _pubsub.sub('/action/client/status', $func.send.status);
-		var dataGetHandle = _pubsub.sub('/action/database/get/client', gigo.get);
-		var dataSetHandle = _pubsub.sub('/action/database/set/client', gigo.set);
+		if ($data.database.active === true) {
+			gigo = require('gigo');
+			var dataGetHandle = _pubsub.sub('/action/database/get/client', gigo.get);
+			var dataSetHandle = _pubsub.sub('/action/database/set/client', gigo.set);
+		}
 		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', $func.key.get);
 		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', $func.key.verify);
 		$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
@@ -392,7 +413,7 @@ module.exports = exports = __api = (function() {
 			var query = qs.parse(inbound.query);
 			var requestID = $func.util.getID($data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
-			_log.dbg('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
+			_log.debug('received request ('+requestID+') at '+timestamp+' for ['+pathname+']', 1);
 			$data.server.stats.timestamps.last = timestamp
 			var client = {};
 			client['pathname'] = pathname;
@@ -487,7 +508,7 @@ module.exports = exports = __api = (function() {
 				return _pubsub.pub('/action/client/status', [requestID, 405]);
 			}
 		}).on('error', function(err) {
-			_log.err(err);
+			_log.error(err);
 		}).listen( $data.server.listenPort );
 		_log.log('listening on tcp/'+$data.server.listenPort);
 	}
@@ -501,5 +522,5 @@ module.exports = exports = __api = (function() {
 				func: $func
 			}
 		};
-	}
+	}	
 })();
