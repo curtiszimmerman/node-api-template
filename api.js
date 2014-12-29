@@ -105,7 +105,7 @@ module.exports = exports = __api = (function() {
 		 * @param {string} requestID (optional) The client to clean out of the cache.
 		 * @return {boolean} True on success.
 		 */
-		cacheCleanup: function( requestIdD ) {
+		cacheCleanup: function( requestID ) {
 			if (requestID) return delete $data.cache.clients[requestID];
 			var timestamp = Math.round(new Date().getTime()/1000.0);
 			for (var client in $data.cache.clients) {
