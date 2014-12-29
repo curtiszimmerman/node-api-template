@@ -78,7 +78,7 @@ module.exports = exports = __api = (function() {
 		},
 		server: {
 			args: {},
-			listenPort: 4488,
+			listenPort: 80,
 			state: {
 				development: false,
 				environment: null,
@@ -295,17 +295,26 @@ module.exports = exports = __api = (function() {
 
 	/**
 	 * @function _log
-	 * Exposes three logging functions.
-	 * @method dbg
+	 * Exposes logging functions.
+	 * @method debug
 	 * Log a debug message if debugging is on.
 	 * @param (string) data - The data to log.
 	 * @return (boolean) Success indicator.
-	 * @method err
+	 * @method error
 	 * Log an error.
+	 * @param (string) data - The data to log.
+	 * @return (boolean) Success indicator.
+	 * @method info
+	 * Log an informational message.
 	 * @param (string) data - The data to log.
 	 * @return (boolean) Success indicator.
 	 * @method log
 	 * Log a message.
+	 * @param (string) data - The data to log.
+	 * @param (integer) [loglevel] - Loglevel of data. Default 1.
+	 * @return (boolean) Success indicator.
+	 * @method warn
+	 * Log a warning.
 	 * @param (string) data - The data to log.
 	 * @return (boolean) Success indicator.
 	 */
@@ -381,15 +390,18 @@ module.exports = exports = __api = (function() {
 
 	function init() {
 		$data.server.argv = yargs
-			.usage('Usage: $0 [-d|--database] [-q|--quiet] [-v verbosity]')
+			.usage('Usage: $0 [-d|--database] [-p|--port port] [-q|--quiet] [-v verbosity]')
 			.alias('d', 'database')
+			.alias('p', 'port')
 			.alias('q', 'quiet')
 			.count('verbose')
 			.alias('v', 'verbose')
 			.argv;
 		if ($data.server.argv.database) $data.database.active = true;
-		if ($data.server.argv.verbose) $data.server.state.logs.level = $data.server.argv.verbose+1;
+		if ($data.server.argv.port) $data.server.listenPort = $data.server.argv.port;
 		if ($data.server.argv.quiet) $data.server.state.logs.quiet = true;
+		if ($data.server.argv.verbose) $data.server.state.logs.level = $data.server.argv.verbose+1;
+
 		var clientFileHandle = _pubsub.sub('/action/client/file', $func.send.file);
 		var clientStatusHandle = _pubsub.sub('/action/client/status', $func.send.status);
 		if ($data.database.active === true) {
@@ -413,7 +425,7 @@ module.exports = exports = __api = (function() {
 			var query = qs.parse(inbound.query);
 			var requestID = $func.util.getID($data.cache.settings.requestIDLength);
 			var timestamp = Math.round(new Date().getTime()/1000.0);
-			_log.debug('received request ('+requestID+') at '+timestamp+' for ['+pathname+']', 1);
+			_log.log('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
 			$data.server.stats.timestamps.last = timestamp
 			var client = {};
 			client['pathname'] = pathname;
