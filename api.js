@@ -77,8 +77,23 @@ module.exports = exports = __api = (function() {
 			id: 0
 		},
 		server: {
-			args: {},
-			listenPort: 80,
+			argv: {},
+			settings: {
+				listen: {
+					address: '127.0.0.1',
+					port: 80
+				},
+				logs: {
+					quiet: false,
+					level: 2
+				},
+				ssl: {
+					certificate: null,
+					key: null,
+					enabled: false,
+					port: 443
+				}
+			},
 			state: {
 				development: false,
 				environment: null,
@@ -259,6 +274,20 @@ module.exports = exports = __api = (function() {
 					i++
 				) {	id += charset.substr(Math.floor(Math.random()*charset.length), 1); }
 				return id;
+			},
+			/**
+			 * @function $func.isEmpty
+			 * Test a
+			 */
+			isEmpty: function( thing ) {
+				if (thing === null) return true;
+				if (typeof(thing) === 'undefined') return true;
+				if (typeof(thing) === 'string') return thing === '' ? true : false;
+				if (Array.isArray(thing)) return thing.length === 0 ? true : false;
+				for (var prop in thing) {
+					if (thing.hasOwnProperty(prop)) return false;
+				}
+				return true;
 			}
 		}
 	};
@@ -320,16 +349,17 @@ module.exports = exports = __api = (function() {
 	 */
 	var _log = (function() {
 		var _con = function( data, loglevel ) {
-			var pre = ['[!] ERROR: ', '[+] ', '[i] WARN: ', '[i] INFO: ', '[i] DEBUG: '];
-			return console.log(pre[loglevel]+data);
+			var pre = [' [EROR] ', ' [LOG ] ', ' [WARN] ', ' [INFO] ', ' [DBUG] '];
+			return console.log(_time()+pre[loglevel]+data);
 		};
 		var _debug = function( data ) { return _con(data, 4);};
 		var _error = function( data ) { return _con(data, 0);};
 		var _info = function( data ) { return _con(data, 3);};
 		var _log = function( data, loglevel ) {
 			var loglevel = typeof(loglevel) === 'undefined' ? 1 : loglevel > 4 ? 4 : loglevel;
-			return $data.server.state.logs.quiet ? loglevel === 0 && _con(data, 0) : loglevel <= $data.server.state.logs.level && _con(data, loglevel);
+			return $data.server.settings.logs.quiet ? loglevel === 0 && _con(data, 0) : loglevel <= $data.server.settings.logs.level && _con(data, loglevel);
 		};
+		var _time = function() { return new Date().toJSON();}
 		var _warn = function( data ) { return _con(data, 2);};
 		return {
 			debug: _debug,
@@ -340,9 +370,24 @@ module.exports = exports = __api = (function() {
 		};
 	})();
 
-	/*\
-	|*| pub/sub/unsub pattern utility closure
-	\*/
+	/**
+	 * @function _pubsub
+	 * Exposes pub/sub/unsub pattern utility functions.
+	 * @method flush
+	 * Flush the pubsub cache of all subscriptions.
+	 * @method pub
+	 * Publish an event with arguments.
+	 * @param {string} The event to publish.
+	 * @param {array} Array of arguments to pass to callback.
+	 * @method sub
+	 * Subscribe a callback to an event.
+	 * @param {string} The event topic to subscribe to.
+	 * @param {function} The callback function to fire.
+	 * @method unsub
+	 * Unsubscribe an event handler.
+	 * @param {array} Handler to unsubscribe.
+	 * @param {boolean} Unsubscribe all subscriptions?
+	 */
 	var _pubsub = (function() {
 		var cache = {};
 		function _flush() {
@@ -356,7 +401,6 @@ module.exports = exports = __api = (function() {
 					currentTopic[i].apply(scope || this, args || []);
 				}
 			}
-			return true;
 		};
 		function _sub( topic, callback ) {
 			if (!cache[topic]) {
@@ -378,7 +422,6 @@ module.exports = exports = __api = (function() {
 					}
 				}
 			}
-			return true;
 		};
 		return {
 			flush: _flush,
@@ -388,146 +431,172 @@ module.exports = exports = __api = (function() {
 		};
 	})();
 
-	function init() {
-		$data.server.argv = yargs
-			.usage('Usage: $0 [-d|--database] [-p|--port port] [-q|--quiet] [-v verbosity]')
-			.alias('d', 'database')
-			.alias('p', 'port')
-			.alias('q', 'quiet')
-			.count('verbose')
-			.alias('v', 'verbose')
-			.argv;
-		if ($data.server.argv.database) $data.database.active = true;
-		if ($data.server.argv.port) $data.server.listenPort = $data.server.argv.port;
-		if ($data.server.argv.quiet) $data.server.state.logs.quiet = true;
-		if ($data.server.argv.verbose) $data.server.state.logs.level = $data.server.argv.verbose+1;
-
-		var clientFileHandle = _pubsub.sub('/action/client/file', $func.send.file);
-		var clientStatusHandle = _pubsub.sub('/action/client/status', $func.send.status);
-		if ($data.database.active === true) {
-			gigo = require('gigo');
-			var dataGetHandle = _pubsub.sub('/action/database/get/client', gigo.get);
-			var dataSetHandle = _pubsub.sub('/action/database/set/client', gigo.set);
-		}
-		var APIKeyGetHandle = _pubsub.sub('/action/api/key/get', $func.key.get);
-		var APIKeyVerifyHandle = _pubsub.sub('/action/api/key/verify', $func.key.verify);
-		$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
-		setInterval(function() {
-			$func.cacheCleanup();
-		}, $data.cache.settings.cleanupInterval*1000);
-	};
-
-	function api() {
-		init();
-		var server = http.createServer(function(req, res) {
-			var inbound = url.parse(req.url);
-			var pathname = inbound.pathname;
-			var query = qs.parse(inbound.query);
-			var requestID = $func.util.getID($data.cache.settings.requestIDLength);
-			var timestamp = Math.round(new Date().getTime()/1000.0);
-			_log.log('received request ('+requestID+') at '+timestamp+' for ['+pathname+']');
-			$data.server.stats.timestamps.last = timestamp
-			var client = {};
-			client['pathname'] = pathname;
-			client['res'] = res;
-			client['timestamp'] = timestamp;
-			$data.cache.clients[requestID] = client;
-			_pubsub.pub('/action/database/set', [requestID, client]);
-			if (req.method === 'GET') {
-				// BEGIN API front-end
-				if (pathname === '/favicon.ico') {
-					return _pubsub.pub('/action/client/status', [requestID, 404]);
-				} else if (pathname === '/index.html') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
-				} else if (pathname === '/site.js') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
-				} else if (pathname === '/default.css') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
-				// END API front-end
-				// BEGIN API functions
-				} else if (pathname === '/show_clients') {
-					return _pubsub.pub('/action/database/get/all', [requestID]);
-				} else if (pathname === '/stats') {
-					var statsResponse = {
-						clients: {
-							cachedActual: 0,
-							cachedPredicted: 0,
-							error: 0,
-							processed: 0
-						},
-						timestamps: {
-							last: 0,
-							now: 0,
-							uptime: (timestamp-$data.server.stats.timestamps.up)
-						},
-						version: $data.server.stats.version
-					};
-					return _pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
-				} else if (pathname === '/version') {
-					var versionResponse = {
-						version: $data.server.stats.version
-					};
-					return _pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
-				} else if (pathname === '/api/verify') {
-					if (typeof(query.key) !== 'undefined') {
-						return _pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
-					} else {
-						return _pubsub.pub('/action/client/status', [requestID, 400]);
-					}
-				// END API functions
-				// BEGIN test site
-				} else if (pathname === '/test.html') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
-				} else if (pathname === '/test.js') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
-				} else if (pathname === '/test.css') {
-					return _pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
-				} else if (pathname === '/mocha.css') {
-					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.css']);
-				} else if (pathname === '/mocha.js') {
-					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
-				} else if (pathname === '/chai.js') {
-					return _pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
-				// END test site (put your own site/api-specific features here)
-				} else if (pathname === '/die') {
-					// throw unhandled exception
-					throw new Error('unhandled exception! dying...');
-				} else if (pathname === '/hang') {
-					// just hang
-				} else if (pathname === '/status') {
-					if (typeof(query.code) !== 'undefined') {
-						return _pubsub.pub('/action/client/status', [requestID, query.code]);
-					} else {
-						return _pubsub.pub('/action/client/status', [requestID, 400]);
-					}
-				} else {
-					return _pubsub.pub('/action/client/status', [requestID, 404]);
-				}
-			} else if (req.method === 'POST') {
-				// POST
-				if (pathname === '/api/key/get') {
-					return _pubsub.pub('/action/api/key/get', [requestID]);
-				} else {
-					return _pubsub.pub('/action/client/status', [requestID, 400]);
-				}
-			} else if (req.method === 'DELETE') {
-				// DELETE
-				return _pubsub.pub('/action/client/status', [requestID, 501]);
-			} else if (req.method === 'PUT') {
-				// PUT
-				return _pubsub.pub('/action/client/status', [requestID, 501]);
-			} else {
-				return _pubsub.pub('/action/client/status', [requestID, 405]);
+	var $core = {
+		init: function() {
+			$data.server.argv = yargs
+				.usage('Usage: $0 [OPTIONS]')
+				.alias('a', 'address')
+				.describe('a', 'address to listen on. default "0.0.0.0" to appease docker.')
+				.alias('c', 'certificate')
+				.describe('c', 'path to SSL certificate.')
+				.alias('d', 'database')
+				.describe('d', 'use a database (not yet implemented).')
+				.alias('k', 'key')
+				.describe('k', 'path to host key for SSL.')
+				.alias('p', 'port')
+				.describe('p', 'port to listen on. default 80 for HTTP, 443 for HTTPS.')
+				.alias('q', 'quiet')
+				.describe('q', 'quiet operation (no console output).')
+				.count('verbose')
+				.alias('v', 'verbose')
+				.describe('v', 'loglevel verbosity (1-5). repeat for more. default 2.')
+				.help('h')
+				.alias('h', 'help')
+				.describe('h', 'this help information')
+				.argv;
+			if (typeof($data.server.argv.certificate) !== 'undefined' && typeof($data.server.argv.key) !== 'undefined') {
+				$data.server.settings.ssl.enabled = true;
+				$data.server.settings.ssl.certificate = $data.server.argv.certificate;
+				$data.server.settings.ssl.key = $data.server.argv.key;
 			}
-		}).on('error', function(err) {
-			_log.error(err);
-		}).listen( $data.server.listenPort );
-		_log.log('listening on tcp/'+$data.server.listenPort);
+			if ($data.server.argv.address) $data.server.settings.listen.address = $data.server.argv.address;
+			if ($data.server.argv.database) $data.database.active = true;
+			$data.server.settings.listen.port = $data.server.argv.port ? $data.server.argv.port : $data.server.settings.ssl.enabled ? 443 : 80;
+			if ($data.server.argv.quiet) $data.server.settings.logs.quiet = true;
+			if ($data.server.argv.verbose) $data.server.settings.logs.level = $data.server.argv.verbose+1;
+
+			_log.log('initiating server...');
+
+			_pubsub.sub('/core/component/api/init', $core.api);
+			_pubsub.sub('/core/component/init/done', function() {
+				_pubsub.pub('/core/component/api/init');
+			});
+			_pubsub.sub('/action/client/file', $func.send.file);
+			_pubsub.sub('/action/client/status', $func.send.status);
+			if ($data.database.active === true) {
+				gigo = require('gigo');
+				_pubsub.sub('/action/database/get/client', gigo.get);
+				_pubsub.sub('/action/database/set/client', gigo.set);
+			}
+			_pubsub.sub('/action/api/key/get', $func.key.get);
+			_pubsub.sub('/action/api/key/verify', $func.key.verify);
+			$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
+			setInterval(function() {
+				$func.cacheCleanup();
+			}, $data.cache.settings.cleanupInterval*1000);
+			_pubsub.pub('/core/component/init/done');
+		},
+		api: function() {
+			var server = http.createServer(function(req, res) {
+				var inbound = url.parse(req.url);
+				var pathname = inbound.pathname;
+				var query = qs.parse(inbound.query);
+				var requestID = $func.util.getID($data.cache.settings.requestIDLength);
+				var timestamp = Math.round(new Date().getTime()/1000.0);
+				_log.log('<'+req.method+'> request ('+requestID+') for ['+pathname+']');
+				$data.server.stats.timestamps.last = timestamp
+				var client = {};
+				client['pathname'] = pathname;
+				client['res'] = res;
+				client['timestamp'] = timestamp;
+				$data.cache.clients[requestID] = client;
+				_pubsub.pub('/action/database/set', [requestID, client]);
+				if (req.method === 'GET') {
+					// BEGIN API front-end
+					if (pathname === '/favicon.ico') {
+						return _pubsub.pub('/action/client/status', [requestID, 404]);
+					} else if (pathname === '/index.html') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/index.html']);
+					} else if (pathname === '/site.js') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/site.js']);
+					} else if (pathname === '/default.css') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/default.css']);
+					// END API front-end
+					// BEGIN API functions
+					} else if (pathname === '/show_clients') {
+						return _pubsub.pub('/action/database/get/all', [requestID]);
+					} else if (pathname === '/stats') {
+						var statsResponse = {
+							clients: {
+								cachedActual: 0,
+								cachedPredicted: 0,
+								error: 0,
+								processed: 0
+							},
+							timestamps: {
+								last: 0,
+								now: 0,
+								uptime: (timestamp-$data.server.stats.timestamps.up)
+							},
+							version: $data.server.stats.version
+						};
+						return _pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
+					} else if (pathname === '/version') {
+						var versionResponse = {
+							version: $data.server.stats.version
+						};
+						return _pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
+					} else if (pathname === '/api/verify') {
+						if (typeof(query.key) !== 'undefined') {
+							return _pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
+						} else {
+							return _pubsub.pub('/action/client/status', [requestID, 400]);
+						}
+					// END API functions
+					// BEGIN test site
+					} else if (pathname === '/test.html') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/test.html']);
+					} else if (pathname === '/test.js') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/test.js']);
+					} else if (pathname === '/test.css') {
+						return _pubsub.pub('/action/client/file', [requestID, 'lib/test.css']);
+					} else if (pathname === '/mocha.css') {
+						return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.css']);
+					} else if (pathname === '/mocha.js') {
+						return _pubsub.pub('/action/client/file', [requestID, 'node_modules/mocha/mocha.js']);
+					} else if (pathname === '/chai.js') {
+						return _pubsub.pub('/action/client/file', [requestID, 'node_modules/chai/chai.js']);
+					// END test site (put your own site/api-specific features here)
+					} else if (pathname === '/die') {
+						// throw unhandled exception
+						throw new Error('unhandled exception! dying...');
+					} else if (pathname === '/hang') {
+						// just hang
+					} else if (pathname === '/status') {
+						if (typeof(query.code) !== 'undefined') {
+							return _pubsub.pub('/action/client/status', [requestID, query.code]);
+						} else {
+							return _pubsub.pub('/action/client/status', [requestID, 400]);
+						}
+					} else {
+						return _pubsub.pub('/action/client/status', [requestID, 404]);
+					}
+				} else if (req.method === 'POST') {
+					// POST
+					if (pathname === '/api/key/get') {
+						return _pubsub.pub('/action/api/key/get', [requestID]);
+					} else {
+						return _pubsub.pub('/action/client/status', [requestID, 400]);
+					}
+				} else if (req.method === 'DELETE') {
+					// DELETE
+					return _pubsub.pub('/action/client/status', [requestID, 501]);
+				} else if (req.method === 'PUT') {
+					// PUT
+					return _pubsub.pub('/action/client/status', [requestID, 501]);
+				} else {
+					return _pubsub.pub('/action/client/status', [requestID, 405]);
+				}
+			}).on('error', function(err) {
+				_log.error(err);
+			}).listen( $data.server.settings.listen.port, $data.server.settings.listen.address );
+			_log.log('listening on tcp/'+$data.server.settings.listen.port);
+		}
 	}
 
 	// if we're being require()ed, we're being tested, so we should expose our test infrastructure
 	if (require.main === module) {
-		return api();
+		return $core.init();
 	} else {
 		return {
 			__test: {

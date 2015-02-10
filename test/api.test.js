@@ -25,5 +25,10 @@ var __test = (function() {
 				expect(true).to.equal(true);
 			});
 		});
+		describe('# $func.util.isEmpty()', function() {
+			it('should be grand', function() {
+				expect(true).to.equal(true);
+			});
+		});
 	});
 })();

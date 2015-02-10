@@ -1,4 +1,5 @@
-# DOCKER-VERSION 0.3.4
+
+
 
 FROM google/nodejs
 MAINTAINER curtis zimmerman <software@curtisz.com>
