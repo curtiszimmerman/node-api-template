@@ -349,18 +349,18 @@ module.exports = exports = __api = (function() {
 	 */
 	var _log = (function() {
 		var _con = function( data, loglevel ) {
-			var pre = [' [EROR] ', ' [LOG ] ', ' [WARN] ', ' [INFO] ', ' [DBUG] '];
+			var pre = [' [EROR] ', ' [WARN] ', ' [LOG ] ', ' [INFO] ', ' [DBUG] '];
 			return console.log(_time()+pre[loglevel]+data);
 		};
-		var _debug = function( data ) { return _con(data, 4);};
-		var _error = function( data ) { return _con(data, 0);};
-		var _info = function( data ) { return _con(data, 3);};
+		var _debug = function( data ) { return _log(data, 4);};
+		var _error = function( data ) { return _log(data, 0);};
+		var _info = function( data ) { return _log(data, 3);};
 		var _log = function( data, loglevel ) {
-			var loglevel = typeof(loglevel) === 'undefined' ? 1 : loglevel > 4 ? 4 : loglevel;
-			return $data.server.settings.logs.quiet ? loglevel === 0 && _con(data, 0) : loglevel <= $data.server.settings.logs.level && _con(data, loglevel);
+			var loglevel = typeof(loglevel) === 'undefined' ? 3 : loglevel > 4 ? 4 : loglevel;
+			return $data.server.settings.logs.quiet ? false : loglevel <= $data.server.settings.logs.level && _con(data, loglevel);
 		};
 		var _time = function() { return new Date().toJSON();}
-		var _warn = function( data ) { return _con(data, 2);};
+		var _warn = function( data ) { return _log(data, 2);};
 		return {
 			debug: _debug,
 			error: _error,
@@ -443,17 +443,23 @@ module.exports = exports = __api = (function() {
 				.describe('d', 'use a database (not yet implemented).')
 				.alias('k', 'key')
 				.describe('k', 'path to host key for SSL.')
+				.alias('l', 'loglevel')
+				.describe('l', 'loglevel verbosity (0-5). default 2.')
 				.alias('p', 'port')
 				.describe('p', 'port to listen on. default 80 for HTTP, 443 for HTTPS.')
 				.alias('q', 'quiet')
 				.describe('q', 'quiet operation (no console output).')
 				.count('verbose')
-				.alias('v', 'verbose')
-				.describe('v', 'loglevel verbosity (1-5). repeat for more. default 2.')
+				.alias('v', 'version')
+				.describe('v', 'version information.')
 				.help('h')
 				.alias('h', 'help')
-				.describe('h', 'this help information')
+				.describe('h', 'this help information.')
 				.argv;
+			if ($data.server.argv.version) {
+				console.log($data.server.stats.version);
+				process.exit(0);
+			}
 			if (typeof($data.server.argv.certificate) !== 'undefined' && typeof($data.server.argv.key) !== 'undefined') {
 				$data.server.settings.ssl.enabled = true;
 				$data.server.settings.ssl.certificate = $data.server.argv.certificate;
@@ -463,7 +469,10 @@ module.exports = exports = __api = (function() {
 			if ($data.server.argv.database) $data.database.active = true;
 			$data.server.settings.listen.port = $data.server.argv.port ? $data.server.argv.port : $data.server.settings.ssl.enabled ? 443 : 80;
 			if ($data.server.argv.quiet) $data.server.settings.logs.quiet = true;
-			if ($data.server.argv.verbose) $data.server.settings.logs.level = $data.server.argv.verbose+1;
+			if (typeof($data.server.argv.loglevel) !== 'undefined') {
+				var loglevel = $data.server.argv.loglevel;
+				$data.server.settings.logs.level = (loglevel > 4 ? 4 : loglevel < 0 ? 0 : loglevel);
+			}
 
 			_log.log('initiating server...');
 
@@ -590,7 +599,9 @@ module.exports = exports = __api = (function() {
 			}).on('error', function(err) {
 				_log.error(err);
 			}).listen( $data.server.settings.listen.port, $data.server.settings.listen.address );
-			_log.log('listening on tcp/'+$data.server.settings.listen.port);
+			_log.log('----------------------------------------');
+			_log.log('listening on '+$data.server.settings.listen.address+':'+$data.server.settings.listen.port);
+			_log.log('----------------------------------------');
 		}
 	}
 
