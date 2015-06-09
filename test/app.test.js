@@ -5,14 +5,18 @@
 var __test = (function() {
 	"use strict";
 
-	var api = require('../api.js');
+	var api = require(__dirname+'/../app.js');
+	var func = api.__test.func;
 	
 	var expect = require('chai').expect;
 	
 	describe('node-api-template', function() {
 		describe('# $func.util.base64.encode()', function() {
-			it('should be grand', function() {
-				expect(true).to.equal(true);
+			it('should throw error if given incorrect parameters', function() {
+				expect(func.util.base64.encode).to.throw(Error);
+			});
+			it('should return a string if given a string', function() {
+				expect(func.util.base64.encode('foo')).to.be.a('string');
 			});
 		});
 		describe('# $func.util.base64.decode()', function() {
