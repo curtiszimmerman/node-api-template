@@ -478,6 +478,11 @@ module.exports = exports = __api = (function() {
 				var loglevel = $data.server.argv.verbosity;
 				$data.server.settings.logs.level = (loglevel > 4 ? 4 : loglevel < 0 ? 0 : loglevel);
 			}
+			/* we can override settings via env vars */
+			if (typeof(process.env.NODE_PORT) === 'string') $data.server.settings.listen.port = process.env.NODE_PORT*1;
+			if (typeof(process.env.NODE_DEBUG) === 'string') {
+				$data.server.settings.logs.level = 4;
+			}
 
 			$log.log('initiating server...');
 
