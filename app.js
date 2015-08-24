@@ -82,6 +82,7 @@ module.exports = exports = __api = (function() {
 		server: {
 			argv: {},
 			settings: {
+				directory: '/pub',
 				listen: {
 					address: '127.0.0.1',
 					port: 4488
@@ -99,7 +100,8 @@ module.exports = exports = __api = (function() {
 						key: null
 					},
 					port: 443
-				}
+				},
+				static: false
 			},
 			state: {
 				development: false,
@@ -178,18 +180,19 @@ module.exports = exports = __api = (function() {
 				fs.stat(file, function(err, stats) {
 					if (err) {
 						$log.error('fs.stat(): '+err);
-						_pubsub.pub('/action/client/status', [requestID, 500]);
+						$pubsub.pub('/action/client/status', [requestID, 500]);
 					} else {
 						if (stats.isFile()) {
 							fs.readFile(file, function(err, data) {
 								if (err) {
 									$log.error('fs.readFile(): '+err);
-									_pubsub.pub('/action/client/status', [requestID, 500]);
+									$pubsub.pub('/action/client/status', [requestID, 500]);
 								} else {
 									var client = $data.cache.clients[requestID];
 									var type = file.substr(file.lastIndexOf('.')+1);
 									headers['Content-Type'] = $data.content.mime[type];
 									if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+									$log.info('  (request '+requestID+'): [200 OK]');
 									client.res.writeHead(200, headers);
 									client.res.write(data);
 									client.res.end();
@@ -231,13 +234,14 @@ module.exports = exports = __api = (function() {
 					response = JSON.stringify(response);
 				} catch (e) {
 					$log.error('$func.sendStatus(): cannot JSON.stringify response object: '+e.message);
-					return _pubsub.pub('/action/client/status', [requestID, 500]);
+					return $pubsub.pub('/action/client/status', [requestID, 500]);
 				}
 				var client = $data.cache.clients[requestID];
 				response['message'] = message;
 				response['status'] = code;
 				headers['Content-Type'] = 'application/json';
 				if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
+				$log.info('  (request '+requestID+'): ['+code+' '+message+']');
 				client.res.writeHead(code, message, headers);
 				client.res.write(JSON.stringify(response));
 				client.res.end();
@@ -363,11 +367,11 @@ module.exports = exports = __api = (function() {
 		var _error = function( data ) { return _log(data, 0);};
 		var _info = function( data ) { return _log(data, 3);};
 		var _log = function( data, loglevel ) {
-			var loglevel = typeof(loglevel) === 'undefined' ? 3 : loglevel > 4 ? 4 : loglevel;
+			var loglevel = typeof(loglevel) === 'undefined' ? 2 : loglevel > 4 ? 4 : loglevel;
 			return $data.server.settings.logs.quiet ? false : loglevel <= $data.server.settings.logs.level && _con(data, loglevel);
 		};
 		var _time = function() { return new Date().toJSON();}
-		var _warn = function( data ) { return _log(data, 2);};
+		var _warn = function( data ) { return _log(data, 1);};
 		return {
 			debug: _debug,
 			error: _error,
@@ -378,7 +382,7 @@ module.exports = exports = __api = (function() {
 	})();
 
 	/**
-	 * @function _pubsub
+	 * @function $pubsub
 	 * Exposes pub/sub/unsub pattern utility functions.
 	 * @method flush
 	 * Flush the pubsub cache of all subscriptions.
@@ -395,7 +399,7 @@ module.exports = exports = __api = (function() {
 	 * @param {array} Handler to unsubscribe.
 	 * @param {boolean} Unsubscribe all subscriptions?
 	 */
-	var _pubsub = (function() {
+	var $pubsub = (function() {
 		var cache = {};
 		function _flush() {
 			cache = {};
@@ -445,15 +449,19 @@ module.exports = exports = __api = (function() {
 				.alias('a', 'address')
 				.describe('a', 'address to listen on. default "0.0.0.0" to appease docker.')
 				.alias('c', 'certificate')
-				.describe('c', 'path to SSL certificate.')
+				.describe('c', 'path to SSL certificate. requires key.')
 				.alias('d', 'database')
 				.describe('d', 'use a database (not yet implemented).')
+				.alias('f', 'files')
+				.describe('f', 'specify directory containing files to serve. relative to server root. default "pub".')
 				.alias('k', 'key')
-				.describe('k', 'path to host key for SSL.')
+				.describe('k', 'path to host key for SSL. requires certificate.')
 				.alias('p', 'port')
 				.describe('p', 'port to listen on. default 80 for HTTP, 443 for HTTPS.')
 				.alias('q', 'quiet')
 				.describe('q', 'quiet operation (no console output).')
+				.alias('s', 'static')
+				.describe('s', 'static file server (serve any existing file in files directory). default false.')
 				.alias('v', 'verbosity')
 				.describe('v', 'loglevel verbosity (0-5). default 2.')
 				.count('verbosity')
@@ -478,6 +486,19 @@ module.exports = exports = __api = (function() {
 				var loglevel = $data.server.argv.verbosity;
 				$data.server.settings.logs.level = (loglevel > 4 ? 4 : loglevel < 0 ? 0 : loglevel);
 			}
+			if ($data.server.argv.files) {
+				try {
+					var stats = fs.statSync(__dirname+'/'+$data.server.argv.files);
+					if (stats.isDirectory()) {
+						$data.server.settings.directory = '/'+$data.server.argv.files;
+					} else {
+						$log.warn('provided files directory does not exist! defaulting to "/pub"');
+					}
+				} catch(e) {
+					$log.warn('provided files directory does ont exist! defaulting to "/pub"!');
+				}
+			}
+			if ($data.server.argv.static) $data.server.settings.static = true;
 			/* we can override settings via env vars */
 			if (typeof(process.env.NODE_PORT) === 'string') $data.server.settings.listen.port = process.env.NODE_PORT*1;
 			if (typeof(process.env.NODE_DEBUG) === 'string') {
@@ -486,24 +507,24 @@ module.exports = exports = __api = (function() {
 
 			$log.log('initiating server...');
 
-			_pubsub.sub('/core/component/api/init', $core.api);
-			_pubsub.sub('/core/component/init/done', function() {
-				_pubsub.pub('/core/component/api/init');
+			$pubsub.sub('/core/component/api/init', $core.api);
+			$pubsub.sub('/core/component/init/done', function() {
+				$pubsub.pub('/core/component/api/init');
 			});
-			_pubsub.sub('/action/client/file', $func.send.file);
-			_pubsub.sub('/action/client/status', $func.send.status);
+			$pubsub.sub('/action/client/file', $func.send.file);
+			$pubsub.sub('/action/client/status', $func.send.status);
 			if ($data.database.active === true) {
 				$gigo = require('gigo');
-				_pubsub.sub('/action/database/get/client', $gigo.get);
-				_pubsub.sub('/action/database/set/client', $gigo.set);
+				$pubsub.sub('/action/database/get/client', $gigo.get);
+				$pubsub.sub('/action/database/set/client', $gigo.set);
 			}
-			_pubsub.sub('/action/api/key/get', $func.key.get);
-			_pubsub.sub('/action/api/key/verify', $func.key.verify);
+			$pubsub.sub('/action/api/key/get', $func.key.get);
+			$pubsub.sub('/action/api/key/verify', $func.key.verify);
 			$data.server.stats.timestamps.up = Math.round(new Date().getTime()/1000.0);
 			setInterval(function() {
 				$func.cacheCleanup();
 			}, $data.cache.settings.cleanupInterval*1000);
-			_pubsub.pub('/core/component/init/done');
+			$pubsub.pub('/core/component/init/done');
 		},
 		api: function() {
 			var listener = function(req, res) {
@@ -520,21 +541,21 @@ module.exports = exports = __api = (function() {
 				client['res'] = res;
 				client['timestamp'] = timestamp;
 				$data.cache.clients[requestID] = client;
-				_pubsub.pub('/action/database/set', [requestID, client]);
+				$pubsub.pub('/action/database/set', [requestID, client]);
 				if (req.method === 'GET') {
 					// BEGIN API front-end
 					if (pathname === '/favicon.ico') {
-						return _pubsub.pub('/action/client/status', [requestID, 404]);
+						return $pubsub.pub('/action/client/status', [requestID, 404]);
 					} else if (pathname === '/index.html') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/index.html']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/index.html']);
 					} else if (pathname === '/site.js') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/site.js']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/site.js']);
 					} else if (pathname === '/default.css') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/default.css']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/default.css']);
 					// END API front-end
 					// BEGIN API functions
 					} else if (pathname === '/show_clients') {
-						return _pubsub.pub('/action/database/get/all', [requestID]);
+						return $pubsub.pub('/action/database/get/all', [requestID]);
 					} else if (pathname === '/stats') {
 						var statsResponse = {
 							clients: {
@@ -550,32 +571,32 @@ module.exports = exports = __api = (function() {
 							},
 							version: $data.server.stats.version
 						};
-						return _pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
+						return $pubsub.pub('/action/client/status', [requestID, 200, {}, statsResponse]);
 					} else if (pathname === '/version') {
 						var versionResponse = {
 							version: $data.server.stats.version
 						};
-						return _pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
+						return $pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
 					} else if (pathname === '/api/verify') {
 						if (typeof(query.key) !== 'undefined') {
-							return _pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
+							return $pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
 						} else {
-							return _pubsub.pub('/action/client/status', [requestID, 400]);
+							return $pubsub.pub('/action/client/status', [requestID, 400]);
 						}
 					// END API functions
 					// BEGIN test site
 					} else if (pathname === '/test.html') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/test.html']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/test.html']);
 					} else if (pathname === '/test.js') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/test.js']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/test.js']);
 					} else if (pathname === '/test.css') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/pub/test.css']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+'/test.css']);
 					} else if (pathname === '/mocha.css') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/mocha/mocha.css']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/mocha/mocha.css']);
 					} else if (pathname === '/mocha.js') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/mocha/mocha.js']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/mocha/mocha.js']);
 					} else if (pathname === '/chai.js') {
-						return _pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/chai/chai.js']);
+						return $pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/chai/chai.js']);
 					// END test site (put your own site/api-specific features here)
 					} else if (pathname === '/die') {
 						// throw unhandled exception
@@ -584,28 +605,43 @@ module.exports = exports = __api = (function() {
 						// just hang
 					} else if (pathname === '/status') {
 						if (typeof(query.code) !== 'undefined') {
-							return _pubsub.pub('/action/client/status', [requestID, query.code]);
+							return $pubsub.pub('/action/client/status', [requestID, query.code]);
 						} else {
-							return _pubsub.pub('/action/client/status', [requestID, 400]);
+							return $pubsub.pub('/action/client/status', [requestID, 400]);
 						}
 					} else {
-						return _pubsub.pub('/action/client/status', [requestID, 404]);
+						if ($data.server.settings.static) {
+							if (pathname === '/') pathname = '/index.html';
+							fs.stat(__dirname+$data.server.settings.directory+pathname, function(err, stats) {
+								if (err) {
+									$pubsub.pub('/action/client/status', [requestID, (err.code === 'ENOENT' ? 404 : 500)]);
+								} else {
+									if (!stats.isFile()) {
+										$pubsub.pub('/action/client/status', [requestID, 500]);
+									} else {
+										$pubsub.pub('/action/client/file', [requestID, __dirname+$data.server.settings.directory+pathname]);
+									}
+								}
+							});
+						} else {
+							return $pubsub.pub('/action/client/status', [requestID, 404]);
+						}
 					}
 				} else if (req.method === 'POST') {
 					// POST
 					if (pathname === '/api/key/get') {
-						return _pubsub.pub('/action/api/key/get', [requestID]);
+						return $pubsub.pub('/action/api/key/get', [requestID]);
 					} else {
-						return _pubsub.pub('/action/client/status', [requestID, 400]);
+						return $pubsub.pub('/action/client/status', [requestID, 400]);
 					}
 				} else if (req.method === 'DELETE') {
 					// DELETE
-					return _pubsub.pub('/action/client/status', [requestID, 501]);
+					return $pubsub.pub('/action/client/status', [requestID, 501]);
 				} else if (req.method === 'PUT') {
 					// PUT
-					return _pubsub.pub('/action/client/status', [requestID, 501]);
+					return $pubsub.pub('/action/client/status', [requestID, 501]);
 				} else {
-					return _pubsub.pub('/action/client/status', [requestID, 405]);
+					return $pubsub.pub('/action/client/status', [requestID, 405]);
 				}
 			};
 			var server = ($data.server.settings.ssl.enabled) ? https.createServer($data.server.settings.ssl.options, listener) : http.createServer(listener);
