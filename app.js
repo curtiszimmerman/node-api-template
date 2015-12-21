@@ -592,11 +592,6 @@ module.exports = exports = __api = (function() {
 					} else if (pathname === '/chai.js') {
 						return $pubsub.pub('/action/client/file', [requestID, __dirname+'/node_modules/chai/chai.js']);
 					// END test site (put your own site/api-specific features here)
-					} else if (pathname === '/die') {
-						// throw unhandled exception
-						throw new Error('/die called: unhandled exception! dying...');
-					} else if (pathname === '/hang') {
-						// just hang
 					} else if (pathname === '/status') {
 						if (typeof(query.code) !== 'undefined') {
 							return $pubsub.pub('/action/client/status', [requestID, query.code]);
