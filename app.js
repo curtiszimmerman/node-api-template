@@ -216,7 +216,7 @@ module.exports = exports = __api = (function() {
 			status: function( requestID, code, headers, response, callback ) {
 				var headers = (typeof(headers) === 'object') ? headers : {};
 				var response = (typeof(response) === 'object') ? response : {};
-				var message;
+				var message = {};
 				var codes = {
 					100:"Continue",101:"Switching Protocols",102:"Processing",
 					200:"OK",201:"Created",202:"Accepted",203:"Non-Authoritative Information",204:"No Content",205:"Reset Content",206:"Partial Content",207:"Multi-Status",208:"Already Reported",226:"IM Used",
@@ -229,12 +229,6 @@ module.exports = exports = __api = (function() {
 				} else {
 					code = 500;
 					message = codes[code];
-				}
-				try {
-					response = JSON.stringify(response);
-				} catch (e) {
-					$log.error('$func.sendStatus(): cannot JSON.stringify response object: '+e.message);
-					return $pubsub.pub('/action/client/status', [requestID, 500]);
 				}
 				var client = $data.cache.clients[requestID];
 				response['message'] = message;
