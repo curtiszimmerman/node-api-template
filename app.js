@@ -62,6 +62,7 @@ module.exports = exports = __api = (function() {
 			}
 		},
 		content: {
+			binary: ['gif','ico','jpg','jpeg','png'],
 			mime: {
 				css: 'text/css',
 				gif: 'image/gif',
@@ -190,11 +191,12 @@ module.exports = exports = __api = (function() {
 								} else {
 									var client = $data.cache.clients[requestID];
 									var type = file.substr(file.lastIndexOf('.')+1);
+									var encoding = $data.content.binary.indexOf(type) > -1 ? 'binary' : 'utf8';
 									headers['Content-Type'] = $data.content.mime[type];
 									if ($data.content.settings.cors) headers['Access-Control-Allow-Origin'] = '*';
 									$log.info('  (request '+requestID+'): [200 OK]');
 									client.res.writeHead(200, headers);
-									client.res.write(data);
+									client.res.write(data, encoding);
 									client.res.end();
 									$func.cacheCleanup(requestID);
 								}
