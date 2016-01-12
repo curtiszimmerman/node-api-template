@@ -15,8 +15,6 @@
 FROM google/nodejs
 MAINTAINER curtis zimmerman <software@curtisz.com>
 
-ENV port 80
-
 RUN apt-get install -y git
 RUN mkdir -p /var/www/node-api-template/
 RUN git clone https://github.com/curtiszimmerman/node-api-template /var/www/node-api-template/
@@ -26,6 +24,8 @@ WORKDIR /var/www/node-api-template/
 # RUN npm -g install
 RUN npm install
 
-EXPOSE ${port}
+ARG PORT=80
 
-CMD ["/nodejs/bin/node", "/var/www/node-api-template/app.js", "-p ${port}", "-vvvvv", "-s"]
+EXPOSE ${PORT}
+
+CMD ["/nodejs/bin/node", "/var/www/node-api-template/app.js", "-p ${PORT}", "-vvvvv", "-s"]
