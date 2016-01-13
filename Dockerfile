@@ -24,4 +24,4 @@ WORKDIR /var/www/node-api-template/
 # RUN npm -g install
 RUN npm install
 
-CMD ["/usr/local/bin/node", "/var/www/node-api-template/app.js", "-vvvvv", "-s"]
+CMD "/usr/local/bin/node /var/www/node-api-template/app.js"

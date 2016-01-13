@@ -465,41 +465,39 @@ module.exports = exports = __api = (function() {
 				.alias('h', 'help')
 				.describe('h', 'this help information.')
 				.argv;
-			if ($data.server.argv.version) {
+			if (typeof($data.server.argv.version) !== 'undefined') {
 				console.log($data.server.stats.version);
 				process.exit(0);
 			}
-			if (typeof($data.server.argv.certificate) !== 'undefined' && typeof($data.server.argv.key) !== 'undefined') {
+			if ((typeof($data.server.argv.certificate) !== 'undefined' && typeof($data.server.argv.key) !== 'undefined') || (typeof(process.env.NODE_CERTIFICATE) !== 'undefined' && typeof(process.env.NODE_KEY) !== 'undefined')) {
 				$data.server.settings.ssl.enabled = true;
-				$data.server.settings.ssl.options.cert = fs.readFileSync($data.server.settings.ssl.cert = $data.server.argv.certificate);
-				$data.server.settings.ssl.options.key = fs.readFileSync($data.server.settings.ssl.key = $data.server.argv.key);
+				$data.server.settings.ssl.options.cert = fs.readFileSync($data.server.settings.ssl.cert = (typeof($data.server.argv.certificate) !== 'undefined' ? $data.server.argv.certificate : process.env.NODE_CERTIFICATE));
+				$data.server.settings.ssl.options.key = fs.readFileSync($data.server.settings.ssl.key = (typeof($data.server.argv.key) !== 'undefined' ? $data.server.argv.key : process.env.NODE_KEY));
 			}
-			if ($data.server.argv.address) $data.server.settings.listen.address = $data.server.argv.address;
-			if ($data.server.argv.database) $data.database.active = true;
-			$data.server.settings.listen.port = $data.server.argv.port ? $data.server.argv.port : $data.server.settings.ssl.enabled ? 443 : 80;
-			if ($data.server.argv.quiet) $data.server.settings.logs.quiet = true;
-			if (typeof($data.server.argv.verbosity) !== 'undefined') {
-				var loglevel = $data.server.argv.verbosity;
+			if (typeof($data.server.argv.address) !== 'undefined' || typeof(process.env.NODE_ADDRESS) !== 'undefined') $data.server.settings.listen.address = typeof($data.server.argv.address) !== 'undefined' ? $data.server.argv.address : process.env.NODE_ADDRESS;
+			if (typeof($data.server.argv.database) !== 'undefined' || typeof(process.env.NODE_DATABASE) !== 'undefined') $data.database.active = true;
+			$data.server.settings.listen.port = typeof($data.server.argv.port) !== 'undefined' ? $data.server.argv.port : $data.server.settings.ssl.enabled ? 443 : 80;
+			if (typeof($data.server.argv.quiet) !== 'undefined' || typeof(process.env.NODE_QUIET) !== 'undefined') $data.server.settings.logs.quiet = true;
+			if (typeof($data.server.argv.verbosity) !== 'undefined' || typeof(process.env.NODE_DEBUG) !== 'undefined') {
+				var loglevel = typeof($data.server.argv.verbosity) !== 'undefined' ? $data.server.argv.verbosity : process.env.NODE_DEBUG;
 				$data.server.settings.logs.level = (loglevel > 4 ? 4 : loglevel < 0 ? 0 : loglevel);
 			}
-			if ($data.server.argv.files) {
+			if (typeof($data.server.argv.files) !== 'undefined' || typeof(process.env.NODE_FILES) !== 'undefined') {
+				var filesLocation = typeof($data.server.argv.files) !== 'undefined' ? $data.server.argv.files : process.env.NODE_FILES;
 				try {
-					var stats = fs.statSync(__dirname+'/'+$data.server.argv.files);
+					var stats = fs.statSync(__dirname+'/'+filesLocation);
 					if (stats.isDirectory()) {
-						$data.server.settings.directory = '/'+$data.server.argv.files;
+						$data.server.settings.directory = '/'+fileslocation;
 					} else {
 						$log.warn('provided files directory does not exist! defaulting to "/pub"');
 					}
 				} catch(e) {
-					$log.warn('provided files directory does ont exist! defaulting to "/pub"!');
+					$log.warn('provided files directory does not exist! defaulting to "/pub"!');
 				}
 			}
-			if ($data.server.argv.static) $data.server.settings.static = true;
+			if (typeof($data.server.argv.static) !== 'undefined' || typeof(process.env.NODE_STATIC) !== 'undefined') $data.server.settings.static = true;
 			/* we can override settings via env vars */
 			if (typeof(process.env.NODE_PORT) === 'string') $data.server.settings.listen.port = process.env.NODE_PORT*1;
-			if (typeof(process.env.NODE_DEBUG) === 'string') {
-				$data.server.settings.logs.level = 4;
-			}
 
 			$log.log('initiating server...');
 
