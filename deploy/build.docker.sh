@@ -1,5 +1,3 @@
 #!/bin/bash
 
-if [[ $# -ne 2 ]]; then
-	usage()
-fi
+docker build -t="node-api-template" .

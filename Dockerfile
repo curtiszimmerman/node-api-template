@@ -12,7 +12,7 @@
 #|             docker exec myContainer -it /bin/bash             |#
 #\_______________________________________________________________/#
 
-FROM google/nodejs
+FROM node:4.2.4
 MAINTAINER curtis zimmerman <software@curtisz.com>
 
 RUN apt-get install -y git
@@ -24,8 +24,4 @@ WORKDIR /var/www/node-api-template/
 # RUN npm -g install
 RUN npm install
 
-ARG PORT=80
-
-EXPOSE ${PORT}
-
-CMD ["/nodejs/bin/node", "/var/www/node-api-template/app.js", "-p ${PORT}", "-vvvvv", "-s"]
+CMD ["/usr/local/bin/node", "/var/www/node-api-template/app.js", "-vvvvv", "-s"]
