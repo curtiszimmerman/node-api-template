@@ -6,7 +6,7 @@ language: node_js
 
 # version numbers
 node_js:
-  - 0.10.25
+  - "0.10"
 
 # sample environment varialbes (encrypted vars created on shippable.com)
 #env:

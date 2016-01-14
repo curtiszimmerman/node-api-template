@@ -19,7 +19,6 @@ ARG BASEBUILD
 RUN echo "Building basebuild ${BASEBUILD}..."
 
 RUN apt-get update
-RUN apt-get upgrade -y
 RUN apt-get install -y git
 
 ARG VERSION

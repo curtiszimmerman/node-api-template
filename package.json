@@ -1,6 +1,6 @@
 {
   "name": "node-api-template",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "HTTP-based RESTful JSON API template",
   "main": "app.js",
   "dependencies": {
