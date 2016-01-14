@@ -5,6 +5,7 @@ if [[ $# -ne 1 ]]; then
 	exit 1
 fi
 
+basebuild="WEEK-$(date +%W)_DATE-$(date +%b-%Y)"
 version=$1
 
-docker build -t="node-api-template" --build-arg "VERSION=${version}" .
+docker build -t="node-api-template" --build-arg "VERSION=${version}" --build-arg "BASEBUILD=${basebuild}" .
