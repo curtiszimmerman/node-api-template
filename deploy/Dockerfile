@@ -31,4 +31,4 @@ RUN git clone https://github.com/curtiszimmerman/node-api-template /var/www/node
 WORKDIR /var/www/node-api-template/
 RUN npm install
 
-CMD "/usr/local/bin/node /var/www/node-api-template/app.js"
+CMD /usr/local/bin/node /var/www/node-api-template/app.js

@@ -167,6 +167,25 @@ module.exports = exports = __api = (function() {
 			};
 		})(),
 		/**
+		 * @function $func.processCreateRequest
+		 * Process an inbound "create" request.
+		 * @param (object) request - The parsed, inbound request data object.
+		 * @param (function) callback - Callback on completion.
+		 * @returns (bool) True on success.
+		 */
+		processCreateRequest: function( request, callback ) {
+			// do some processing
+			var data = request.data;
+			if (data === 'foo') {
+				// things look good
+				return typeof(callback) === 'function' && callback(null, data);
+			} else {
+				// something went wrong
+				var err = 'there was an error processing the request';
+				return typeof(callback) === 'function' && callback(err);
+			}
+		},
+		/**
 		 * @function $func.send.file
 		 * Sends a file to the specified Request ID.
 		 * @param (string) requestID - The request ID to send file to..
@@ -617,8 +636,31 @@ module.exports = exports = __api = (function() {
 						}
 					}
 				} else if (req.method === 'POST') {
-					// POST
-					if (pathname === '/api/key/get') {
+					// example POST request
+					if (pathname === '/api/create') {
+						var requestBody = '';
+						req.on('data', function(data) {
+							requestBody += data;
+							// if requestBody is too big, return "413: request payload too large"
+							if (requestBody.length > 1e6) return $pubsub.pub('/action/client/status', [requestID, 413]);
+						});
+						req.on('end', function() {
+							try {
+								var requestData = qs.parse(requestBody);
+							} catch(e) {
+								$log.warn('received malformed request body: ['+e.message+']');
+								$log.debug('contents of malformed request body: ['+requestBody+']');
+								return $pubsub.pub('/action/client/status', [requestID, 400]);
+							}
+							$func.processCreateRequest(requestData, function(err, processedData) {
+								if (err) {
+									return $pubsub.pub('/action/client/status', [requestID, 500]);
+								} else {
+									// return the processed data to the client along with a 200 status
+									return $pubsub.pub('/action/client/status', [requestID, 200, null, processedData]);
+								}
+							});
+						});
 						return $pubsub.pub('/action/api/key/get', [requestID]);
 					} else {
 						return $pubsub.pub('/action/client/status', [requestID, 400]);
