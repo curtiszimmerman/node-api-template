@@ -4,16 +4,15 @@
   "description": "HTTP-based RESTful JSON API template",
   "main": "app.js",
   "dependencies": {
-    "gigo": "0.0.1",
+    "hiredis": "^0.4.1",
+    "ioredis": "^1.15.1",
     "yargs": "1.3.3"
   },
   "devDependencies": {
-    "chai": "1.9.2",
-    "mocha": "1.20.1",
-    "mocha-phantomjs": "3.5.3",
-    "phantomjs": "1.9.17",
-    "sinon": "1.14.1",
-    "sinon-chai": "2.7.0"
+    "chai": "^3.5.0",
+    "mocha": "^2.4.5",
+    "sinon": "^1.17.3",
+    "sinon-chai": "^2.8.0"
   },
   "scripts": {
     "dev": "node ./app.js -vvvvv -p 4488",

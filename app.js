@@ -30,7 +30,8 @@ module.exports = exports = __api = (function() {
 	var qs = require('querystring');
 	var url = require('url');
 	/* third-party */
-	var $gigo = null;
+	var $redis = require('ioredis');
+	var $yaml = null;
 	var $yargs = require('yargs');
 
 	/**
@@ -146,7 +147,7 @@ module.exports = exports = __api = (function() {
 		 * @function $func.key
 		 * Exposes functions related to API key management.
 		 * @method get
-		 * Generates a new API key. 
+		 * Generates a new API key.
 		 * @return (string) The generated API key.
 		 * @method verify
 		 * Authenticates an API key.
@@ -592,7 +593,7 @@ module.exports = exports = __api = (function() {
 						return $pubsub.pub('/action/client/status', [requestID, 200, {}, versionResponse]);
 					} else if (pathname === '/api/verify') {
 						if (typeof(query.key) !== 'undefined') {
-							return $pubsub.pub('/action/api/key/verify', [requestID, query.key]);	
+							return $pubsub.pub('/action/api/key/verify', [requestID, query.key]);
 						} else {
 							return $pubsub.pub('/action/client/status', [requestID, 400]);
 						}
@@ -694,5 +695,5 @@ module.exports = exports = __api = (function() {
 				func: $func
 			}
 		};
-	}	
+	}
 })();
